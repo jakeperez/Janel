@@ -1,0 +1,203 @@
+// Values come from config.js, which "npm run build" writes from your Vercel environment variables.
+const CFG=window.GV_CONFIG||{},SB_URL=CFG.SUPABASE_URL||"https://xrfehvxqchskxcjytkvv.supabase.co",SB_KEY=CFG.SUPABASE_ANON_KEY||"PASTE_YOUR_ANON_KEY_HERE";
+// name, wordmark, [color1,color2], amounts (USD), review count, discount %
+const GC=[["Steam Wallet Code","STEAM",["#1B2838","#2A6FA8"],[5,10,20,50,100],518,3],["Binance Gift Card","BINANCE",["#FFCB05","#F2B100"],[10,25,50,100],231,0],["Bstation / Bilibili","BILIBILI",["#27C7FF","#2B7BFF"],[5,10,25],12,0],["DramaBox Voucher","DRAMABOX",["#FF2D6F","#FF7A1A"],[5,10,20],1,0],["Mobile Legends Epin","MOBILE LEGENDS",["#7B3FE4","#2A8CFF"],[5,10,25,50],2,0],["PlayStation Store Gift Card (PSN)","PLAYSTATION",["#0A62C9","#0B3C94"],[10,25,50,100],165,0],["Nintendo eShop (USD)","NINTENDO eSHOP",["#FF7A00","#FF9A1F"],[10,20,35,50],46,0],["PlayStation Singapore (PSN SGD)","PSN SGD",["#0A2A8A","#06195C"],[10,20,50],24,0],["Voucher Legend of YMIR","YMIR",["#46464B","#141416"],[5,10,25],9,5],["Blizzard Gift Card","BLIZZARD",["#0F6FC0","#06264A"],[20,50,100],77,0],["Xbox Gift Card","XBOX",["#1E9A1E","#0B6B0B"],[10,25,50,100],134,0],["NetEase Pay Gift Card","NETEASE PAY",["#D12A45","#FF5470"],[5,10,25],18,0],["Google Play Gift Card","GOOGLE PLAY",["#2E2E32","#0A0A0C"],[5,10,25,50,100],203,0],["Voucher Minecraft","MINECRAFT",["#5FAE2E","#7B5A3A"],[10,25,50],64,8],["Nintendo Switch Online","SWITCH ONLINE",["#E60012","#B8000F"],[8,20,35],41,0]];
+const TORN="polygon(0 0,100% 0,100% 86%,"+Array.from({length:14},(_,i)=>`${(100-(i+1)*100/14).toFixed(1)}% ${i%2?94:86}%`).join(",")+")";
+const slug=g=>g[1].toLowerCase().replace(/[^a-z0-9]+/g,"-");
+const GIFT='<svg viewBox="0 0 24 24" width="50" height="50" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="9" width="18" height="12" rx="2"/><path d="M12 9v12M3 13h18M12 9C8 9 7 4 10 4c2 0 2 3 2 5zm0 0c4 0 5-5 2-5-2 0-2 3-2 5z"/></svg>';
+const VCH={WELCOME5:[5,0],VAULT10:[10,300],GOLD15:[15,1000]},PMS=["GCash","PayPal","Bank Card"];
+const BRAND={GCash:'<span style="color:#1a4fd6;font-weight:800">◎ GCash</span>',PayPal:'<span style="color:#003087;font-weight:800;font-style:italic">PayPal</span>',"Bank Card":'<span style="color:#17181c;font-weight:700">▭ Card</span>'};
+let S={bal:5000,pts:0,codes:[],ref:"",cart:[],tab:"Gifts"},GQ="",PG={},user=null,sb=null,P={amt:1000,m:"GCash"};
+try{const x=JSON.parse(localStorage.getItem("giftvault2")||"null");if(x&&typeof x.bal=="number"){S.bal=x.bal;S.pts=x.pts||0;S.codes=x.codes||[];S.ref=x.ref||"";S.cart=x.cart||[]}}catch(e){}
+try{if(SB_KEY.indexOf("PASTE")!==0&&window.supabase)sb=supabase.createClient(SB_URL,SB_KEY,{auth:{flowType:"pkce"}})}catch(e){}
+const $=id=>document.getElementById(id),$$=m=>"₱"+m.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}),P0=n=>"₱"+Math.round(n).toLocaleString();
+const save=()=>{try{localStorage.setItem("giftvault2",JSON.stringify(S))}catch(e){}};
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("on"),2800)}
+function head(){$("bal").textContent=$$(S.bal);$("tc").textContent="🛒 Cart ("+S.cart.reduce((s,x)=>s+x.q,0)+")";$("tc").classList.toggle("on",S.tab=="Cart");$("t2").textContent="My Codes ("+S.codes.length+")";$("t2").classList.toggle("on",S.tab=="Codes");$("bb").classList.toggle("on",S.tab=="Product")}
+function nav(h){if(location.hash=="#"+h)route();else location.hash=h}
+function route(){const h=location.hash.slice(1),m=/^card(\d+)$/.exec(h);
+ if(m&&GC[+m[1]])openProduct(+m[1]);else{S.tab=T[h]||"Gifts";render()}closeMenu();window.scrollTo(0,0)}
+function render(){head();
+ if(S.tab=="Product")product();
+ else if(PAGES[S.tab])$("view").innerHTML=PAGES[S.tab]();
+ else if(S.tab=="Gifts"){$("view").innerHTML=`<div class="top2"><h1>🎁 Gift Cards</h1></div><div class="gg" id="gg"></div>`;gList()}
+ else $("view").innerHTML=`<div class="top2"><h1>My Codes</h1></div>`+(S.codes.length?`<div class="gg" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">${S.codes.map(c=>`<div class="gc" style="padding:16px;cursor:default"><b>${c.n}</b><small style="color:var(--mu)">${P0(c.p)} · ${c.m} · ${new Date(c.t).toLocaleDateString()}</small><div class="code" style="font-size:16px">${c.c}</div></div>`).join("")}</div>`:`<div class="gg"><div class="empty">No codes yet. Buy a gift card to see it here.</div></div>`)}
+function gList(){const q=GQ.toLowerCase(),a=GC.map((g,i)=>[g,i]).filter(o=>o[0][0].toLowerCase().includes(q));
+ $("gg").innerHTML=a.length?a.map(([g,i])=>`<article class="gc" tabindex="0" onclick="nav('card${i}')" onkeydown="if(event.key=='Enter')nav('card${i}')"><div class="ga art-${slug(g)}" style="--c1:${g[2][0]};--c2:${g[2][1]};clip-path:${TORN}">${g[5]?`<span class="gd">-${g[5]}%</span>`:""}${GIFT}<b style="${i==1?"color:#1b1b1b;text-shadow:none":""}">${g[1]}</b></div><div class="gb"><div class="gn">${g[0]}</div><div class="gr"><i>★</i> 5.0 <small>(${g[4]})</small></div></div></article>`).join(""):`<div class="empty">No gift cards match your search.</div>`}
+/* ---------- product page ---------- */
+function mkItems(i){const g=GC[i],a=[];
+ if(i==1){const order=["FDUSD","SHIB","DAI","SOL","BTC","XRP","DOGE","PEPE","BNB","EURI"];
+  [5,10,15,20,25,50,100].forEach(d=>order.forEach(c=>{if(c=="BNB"&&d==5)return;const eu=c=="EURI";
+   a.push({n:eu?`Binance ${d} EURI Gift Card`:c=="FDUSD"?`Binance ${d} FDUSD Gift Card`:`Binance ${c} Gift Card ${d} USD`,a:d,p:eu?Math.round(d*86):d*73})}))}
+ else g[3].forEach(d=>a.push({n:`${g[0]} ${d} USD`,a:d,p:d*73}));
+ a.forEach(x=>x.pts=Math.max(10,Math.round(x.p/105)*10));return a}
+function openProduct(i){PG={i,items:mkItems(i),item:-1,m:"",v:0,vc:"",e:"",f:0,guide:true};S.tab="Product";render()}
+const fp=it=>Math.round(it.p*(1-GC[PG.i][5]/100)),total=()=>PG.item>=0?Math.round(fp(PG.items[PG.item])*(1-PG.v/100)):0;
+function updBar(){$("pr").textContent=P0(total())}
+function drawItems(){const am=[...new Set(PG.items.map(x=>x.a))];
+ $("itwrap").innerHTML=(am.length>1?`<div class="chips">${[0,...am].map(a=>`<button class="${PG.f==a?"on":""}" onclick="PG.f=${a};drawItems()">${a?a+" "+(PG.i==1?"":"USD"):"All"}</button>`).join("")}</div>`:"")+`<div class="items">${PG.items.map((it,k)=>PG.f&&it.a!=PG.f?"":`<button class="it${PG.item==k?" on":""}" data-k="${k}" onclick="pickItem(${k})"><b>${it.n}</b><hr><span class="ip">${P0(fp(it))}</span><em>+ ${it.pts} VAULT POINTS</em></button>`).join("")}</div>`}
+function pickItem(k){PG.item=k;document.querySelectorAll(".it").forEach(b=>b.classList.toggle("on",+b.dataset.k==k));updBar()}
+function pickM(m){PG.m=m;document.querySelectorAll("[data-m]").forEach(b=>b.classList.toggle("on",b.dataset.m==m));$("oform").innerHTML=PMS.includes(m)?formHTML(m,"o"):""}
+function applyV(){const c=PG.vc.trim().toUpperCase(),v=VCH[c];PG.v=0;
+ if(!v)toast("Invalid voucher code");else if(S.pts<v[1])toast(`Needs ${v[1]} Vault Points – you have ${S.pts}`);else{PG.v=v[0];toast(`Voucher applied: -${v[0]}%`)}product();updBar()}
+function product(){const g=GC[PG.i],n=g[4],bin=PG.i==1,one=bin?1:0,five=n-one,dates=["03 Nov 2026, 14:20","02 Nov 2026, 12:30","02 Nov 2026, 12:19","02 Nov 2026, 11:42","01 Nov 2026, 16:44"],em=["arte********@gmail.com","sq35*****@gmail.com","jm88******@gmail.com","ka_r*****@gmail.com","lei2*****@gmail.com"],qt=["Fast delivery and a fair price","Easy checkout, would buy again","Code arrived within a minute","Simple and smooth","Good rates compared to other shops"];
+ const rows=[[5,five],[4,0],[3,0],[2,0],[1,one]],rv=Array.from({length:Math.min(5,n)},(_,k)=>`<div class="rv"><div class="r1">${em[k]}<span>★★★★★</span></div><div class="r2"><span>1x qty ${PG.items[(k*7+3)%PG.items.length].n}</span><span>${dates[k]}</span></div><p>“${qt[k]}”</p></div>`).join("");
+ $("view").innerHTML=`<div class="pgrid"><div>
+ <section class="pn"><div class="hrow"><div class="tile art-${slug(g)}" style="--c1:${g[2][0]};--c2:${g[2][1]};${PG.i==1?"color:#1b1b1b":""}">${GIFT.replace('width="50" height="50"','width="40" height="40"')}<b>${g[1]}</b></div><div><h1>${g[0]}</h1><div class="bdg"><span><i></i>Fast Process</span><span><i></i>Instant Delivery</span><span><i></i>Secure Payment</span><span><i></i>Demo Store</span></div></div></div>
+ <button class="guide" onclick="PG.guide=!PG.guide;$('gl').style.display=PG.guide?'':'none'">◉ Purchase Guide <span>⌃</span></button>
+ <ol class="gl" id="gl" style="${PG.guide?"":"display:none"}"><li>Select the item you want.</li><li>Choose a payment method.</li><li>Enter your email and an optional voucher code (try WELCOME5).</li><li>Press Buy now. Your code appears in My Codes.</li></ol></section>
+ <section class="pn"><h2><span class="num">1</span>Select item</h2><div id="itwrap"></div></section>
+ <section class="pn"><h2><span class="num">2</span>Payment Method</h2>
+  <button class="vc" data-m="Vault Coins" onclick="pickM('Vault Coins')"><span class="lg coin">V</span>Vault Coins<small>${$$(S.bal)} · ${S.pts} pts</small></button>
+  <div class="pm">${PMS.map(m=>`<button data-m="${m}" onclick="pickM('${m}')"><span class="lg">${BRAND[m]}</span>${m}<small>No Minimum.</small></button>`).join("")}</div><div id="oform"></div></section>
+ </div><aside>
+ <section class="pn"><h2><span class="num">3</span>Order Confirmation</h2><h3 style="margin-top:0">Transaction Receipt (Required)</h3><p class="sm">Required: You must enter email to receive a transaction receipt</p>
+  <input type="email" autocomplete="email" placeholder="Input your Email" value="${PG.e}" oninput="PG.e=this.value" aria-label="Email"><p class="sm" style="margin-top:12px">Double-check your information to make sure everything is correct before proceeding</p>
+  <h3>Voucher Code</h3><div class="vrow"><input placeholder="(Optional)" value="${PG.vc}" oninput="PG.vc=this.value" aria-label="Voucher code"><button class="out" onclick="applyV()">Apply</button></div>${PG.v?`<p class="okm">Voucher applied: -${PG.v}%</p>`:""}</section>
+ <section class="pn rt"><h3>Rating overview</h3><div class="big">5.0 <small>/5</small></div><div class="stars">★★★★★</div><div>${n} rating${n>1?"s":""}</div>
+  ${rows.map(([s,c])=>`<div class="bar"><span>${s} ★</span><div><i style="width:${n?c/n*100:0}%"></i></div><span>${c}</span></div>`).join("")}${rv}</section></aside></div>`;
+ drawItems();pickM(PG.m||"");updBar()}
+/* ---------- payment forms & validation ---------- */
+function fmtCard(e){e.value=e.value.replace(/\D/g,"").slice(0,19).replace(/(.{4})/g,"$1 ").trim()}
+function fmtExp(e){const d=e.value.replace(/\D/g,"").slice(0,4);e.value=d.length>2?d.slice(0,2)+"/"+d.slice(2):d}
+function formHTML(m,p){return {GCash:`<label class="fl">GCash mobile number</label><input id="${p}1" inputmode="tel" autocomplete="tel" placeholder="09XX XXX XXXX">`,
+ PayPal:`<label class="fl">PayPal email</label><input id="${p}1" type="email" autocomplete="email" placeholder="you@example.com">`,
+ "Bank Card":`<label class="fl">Name on card</label><input id="${p}1" autocomplete="cc-name" placeholder="Juan Dela Cruz"><label class="fl">Card number</label><input id="${p}2" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456" oninput="fmtCard(this)"><div class="two"><div><label class="fl">Expiry</label><input id="${p}3" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY" oninput="fmtExp(this)"></div><div><label class="fl">CVC</label><input id="${p}4" inputmode="numeric" autocomplete="cc-csc" placeholder="123" maxlength="4"></div></div>`}[m]}
+const luhn=n=>{let s=0,d=false;for(let i=n.length-1;i>=0;i--){let x=+n[i];if(d){x*=2;if(x>9)x-=9}s+=x;d=!d}return s%10==0};
+function validate(m,p){const v=k=>{const e=$(p+k);return e?e.value.trim():""};
+ if(m=="GCash")return /^(09|\+?639)\d{9}$/.test(v(1).replace(/[\s-]/g,""))?"":"Enter a valid GCash number (09XX XXX XXXX)";
+ if(m=="PayPal")return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v(1))?"":"Enter a valid PayPal email";
+ const n=v(2).replace(/\s/g,""),ex=v(3).split("/"),mm=+ex[0],yy=2000+(+ex[1]),now=new Date();
+ if(v(1).length<2)return "Enter the name on the card";if(n.length<13||!luhn(n))return "Card number looks invalid";
+ if(!(mm>=1&&mm<=12)||!(yy>now.getFullYear()||(yy==now.getFullYear()&&mm>=now.getMonth()+1)))return "Card expiry is invalid or past";
+ return /^\d{3,4}$/.test(v(4))?"":"Enter the 3 or 4 digit CVC"}
+/* ---------- checkout ---------- */
+const mkCode=()=>{const ch="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",s=()=>Array.from({length:4},()=>ch[Math.floor(Math.random()*ch.length)]).join("");return s()+"-"+s()+"-"+s()};
+function buyNow(){const it=PG.items[PG.item];
+ if(!it){toast("Select an item first");return}if(!PG.m){toast("Choose a payment method");return}
+ if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(PG.e.trim())){toast("Enter a valid email for your receipt");return}
+ if(sb&&!user){toast("Log in to buy");openAuth("in");return}
+ const p=total();
+ if(PG.m=="Vault Coins"){if(p>S.bal){toast("Not enough Vault Coins – deposit funds first");return}}
+ else{const err=validate(PG.m,"o");if(err){toast(err);return}}
+ const b=$("buyb");b.disabled=true;b.textContent="Processing…";
+ setTimeout(async()=>{const c={n:it.n,p,m:PG.m,e:PG.e.trim(),c:mkCode(),t:Date.now(),pt:it.pts};
+  if(!await serverOrder([c])){b.disabled=false;b.textContent="Buy now";return}
+  if(!(sb&&user)&&PG.m=="Vault Coins")S.bal=+(S.bal-p).toFixed(2);S.pts+=it.pts;S.codes.unshift(c);save();head();b.disabled=false;b.textContent="Buy now";
+  $("gbox").innerHTML=`<div class="mh"><b>Purchase complete</b><button class="sq" onclick="closeGift()" aria-label="Close">✕</button></div><p>${it.n}<br><small style="color:var(--mu)">${P0(p)} via ${PG.m} · +${it.pts} Vault Points</small></p><div class="code">${c.c}</div><p class="note">Saved under My Codes. A real store would also email the receipt to ${c.e}; this demo sends nothing. Demo code only, it can’t be redeemed.</p><button class="b pri" style="width:100%;margin-top:12px" onclick="closeGift();nav('codes')">View My Codes</button>`;
+  $("gm").classList.add("on")},1200)}
+function closeGift(){$("gm").classList.remove("on")}
+/* ---------- deposit ---------- */
+function openPay(){$("pamt").value="";P.amt=1000;drawAmts();drawMeths();$("pform").innerHTML=formHTML(P.m,"d");drawPayBtn();$("pay").classList.add("on")}
+function closePay(){$("pay").classList.remove("on")}
+function drawAmts(){$("amts").innerHTML=[500,1000,2000,5000].map(n=>`<button class="${P.amt==n&&!$("pamt").value?"on":""}" onclick="P.amt=${n};$('pamt').value='';drawAmts();drawPayBtn()">${P0(n)}</button>`).join("")}
+function setAmt(v){P.amt=+v;drawAmts();drawPayBtn()}
+function drawMeths(){$("meths").innerHTML=PMS.map(m=>`<button class="${P.m==m?"on":""}" onclick="P.m='${m}';drawMeths();$('pform').innerHTML=formHTML(P.m,'d');drawPayBtn()">${m}</button>`).join("")}
+function drawPayBtn(){$("payb").disabled=false;$("payb").textContent=`Pay ${P.amt>0?P0(P.amt):"₱0"} with ${P.m}`}
+function doPay(){const a=+P.amt;if(!(a>=100&&a<=50000)){toast("Enter an amount between ₱100 and ₱50,000");return}
+ const err=validate(P.m,"d");if(err){toast(err);return}
+ $("payb").disabled=true;$("payb").textContent=P.m=="GCash"?"Waiting for GCash approval…":P.m=="PayPal"?"Contacting PayPal…":"Processing card…";
+ setTimeout(async()=>{if(sb&&user){const r=await sb.rpc("deposit_demo",{p_amount:a});if(r.error){toast(r.error.message);drawPayBtn();return}S.bal=Number(r.data)}else S.bal=+(S.bal+a).toFixed(2);save();closePay();head();if(S.tab=="Product")product();toast(`Deposited ${P0(a)} via ${P.m} (demo)`)},1500)}
+const T={admin:"Admin",cart:"Cart",codes:"Codes",orders:"Orders",mlbb:"MLBB",top20:"Top",affl:"AffL",affp:"AffP",promo:"Promo"};
+const MENU=[["Home","home"],["Order Tracker","orders"],["Check MLBB Server","mlbb",1],["Top 20 User","top20"],["Affiliate Leaderboard","affl"],["Affiliate Program","affp"],["Promo Member","promo",1]];
+function drawMenu(){$("menu").innerHTML=`<div class="mh2"><button class="hb" style="width:auto;padding:4px 8px;font-size:26px" onclick="closeMenu()" aria-label="Close menu">☰</button><div class="logo">🎁 GiftVault</div></div>`+MENU.concat(S.role=="admin"?[["Admin Panel","admin",1]]:[]).map(m=>`<button class="${m[2]?"t":""}" onclick="nav('${m[1]}')">${m[0]}</button>`).join("")}
+function toggleMenu(){drawMenu();$("menu").classList.add("on");$("ms").classList.add("on")}
+function closeMenu(){$("menu").classList.remove("on");$("ms").classList.remove("on")}
+const spent=()=>S.codes.reduce((s,c)=>s+c.p,0),NM=["ka","jm","rey","lei","ar","sq","mi","xd","zen","nik"],nm=i=>NM[i%10]+((i*37)%90+10)+"*****",oid=c=>"GV-"+c.t.toString(36).toUpperCase().slice(-6);
+function ordHTML(q){q=(q||"").toLowerCase();const a=S.codes.filter(c=>!q||(c.e+" "+c.n+" "+oid(c)).toLowerCase().includes(q));
+ return a.length?a.map(c=>`<div class="ord"><div><b>${c.n}</b><small>${oid(c)} · ${new Date(c.t).toLocaleString()}</small></div><div>${P0(c.p)}<small>${c.m}</small></div><span class="st">Delivered</span></div>`).join(""):`<div class="empty">No orders found.</div>`}
+function pgOrders(){return `<div class="top2"><h1>Order Tracker</h1></div><div class="pg1"><input placeholder="Search by email, item or order ID" aria-label="Search orders" oninput="$('ol').innerHTML=ordHTML(this.value)"><div id="ol" style="margin-top:14px">${ordHTML("")}</div></div>`}
+function pgMlbb(){return `<div class="top2"><h1>Check MLBB Server</h1></div><div class="pg1"><section class="pn"><label class="fl">User ID</label><input id="mu" inputmode="numeric" placeholder="e.g. 123456789"><label class="fl">Server (Zone) ID</label><input id="mz" inputmode="numeric" placeholder="e.g. 2345"><button class="b pri" style="width:100%;margin-top:16px" onclick="chkM()">Check</button><div id="mr" style="margin-top:14px;font-size:14px"></div></section></div>`}
+function chkM(){const u=$("mu").value.trim(),z=$("mz").value.trim();$("mr").innerHTML=!/^\d{6,12}$/.test(u)?"Enter a valid User ID (6–12 digits).":!/^\d{3,5}$/.test(z)?"Enter a valid Server ID (3–5 digits).":`✓ ID ${u} (${z}) has a valid format.<br><span style="color:var(--mu)">Demo store: showing the real player name needs a supplier API.</span>`}
+function pgTop(){const me=spent(),rows=Array.from({length:20},(_,i)=>[nm(i),Math.round(184500*Math.pow(.86,i))]),rank=rows.filter(r=>r[1]>me).length+1;
+ return `<div class="top2"><h1>Top 20 User</h1></div><section class="pn" style="padding:18px"><b>Your spending: ${P0(me)}</b> <small style="color:var(--mu)">${me?`· estimated rank #${rank}${rank>20?" (outside the top 20)":""}`:"· buy a gift card to enter the ranking"}</small></section><div style="overflow-x:auto"><table class="tbl"><tr><th>#</th><th>User</th><th>Total spent</th></tr>${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r[0]}</td><td>${P0(r[1])}</td></tr>`).join("")}</table></div><p class="note">Sample ranking data for demo.</p>`}
+function pgAffL(){const rows=Array.from({length:10},(_,i)=>{const n=Math.round(212*Math.pow(.8,i))+3;return [nm(i+4),n,n*180]});
+ return `<div class="top2"><h1>Affiliate Leaderboard</h1></div><div style="overflow-x:auto"><table class="tbl"><tr><th>#</th><th>Affiliate</th><th>Referrals</th><th>Earnings</th></tr>${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r[0]}</td><td>${r[1]}</td><td>${P0(r[2])}</td></tr>`).join("")}</table></div><p class="note">Sample leaderboard data for demo.</p>`}
+function pgAffP(){if(!S.ref){S.ref=Array.from({length:6},()=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*32)]).join("");save()}
+ return `<div class="top2"><h1>Affiliate Program</h1></div><div class="pg1"><section class="pn"><h3 style="margin-top:0">Invite friends, earn commission</h3><p style="color:var(--mu)">Share your link. A live store would pay you a percentage of each referred purchase. In this demo, referrals are not tracked yet.</p><label class="fl">Your referral link</label><div class="vrow"><input readonly id="rl" value="${location.origin+location.pathname}?ref=${S.ref}"><button class="out" onclick="copyRef()">Copy</button></div></section><section class="pn"><div class="two"><div><small style="color:var(--mu)">Referrals</small><div class="big">0</div></div><div><small style="color:var(--mu)">Earnings</small><div class="big">₱0</div></div></div></section></div>`}
+function copyRef(){const e=$("rl");e.select();try{navigator.clipboard.writeText(e.value).then(()=>toast("Link copied"),()=>toast("Press Ctrl+C to copy"))}catch(x){toast("Press Ctrl+C to copy")}}
+const TIERS=[["Member",0,"WELCOME5","5% off"],["Silver",300,"VAULT10","10% off"],["Gold",1000,"GOLD15","15% off"]];
+function pgPromo(){const p=S.pts,cur=[...TIERS].reverse().find(t=>p>=t[1]),nx=TIERS.find(t=>t[1]>p),pct=nx?Math.min(100,p/nx[1]*100):100;
+ return `<div class="top2"><h1>Promo Member</h1></div><div class="pg1"><section class="pn"><div style="display:flex;justify-content:space-between"><b style="font-size:20px">${cur[0]}</b><span class="bal">${p} Vault Points</span></div><div class="prog" style="margin:12px 0"><i style="width:${pct}%"></i></div><small style="color:var(--mu)">${nx?`${nx[1]-p} more points to reach ${nx[0]}`:"Top tier reached"}</small></section>${TIERS.map(t=>`<section class="pn" style="padding:18px;display:flex;justify-content:space-between;gap:12px;opacity:${p>=t[1]?1:.55}"><div><b>${t[0]}</b><div style="color:var(--mu);font-size:13px">${t[1]} Vault Points</div></div><div style="text-align:right"><b style="color:var(--ac)">${t[2]}</b><div style="color:var(--mu);font-size:13px">${t[3]}</div></div></section>`).join("")}<p class="note">Earn Vault Points on every purchase. Enter a voucher code at checkout (step 3).</p></div>`}
+function addCart(){const it=PG.items[PG.item];if(!it){toast("Select an item first");return}
+ const x=S.cart.find(c=>c.n==it.n);if(x){if(x.q>=10){toast("Maximum 10 per item");return}x.q++}else S.cart.push({n:it.n,p:fp(it),pts:it.pts,q:1});
+ save();head();toast("Added to cart – open Cart to check out")}
+let CT={e:"",vc:"",v:0,m:""};
+const cTot=()=>Math.round(S.cart.reduce((s,x)=>s+x.p*x.q,0)*(1-CT.v/100));
+function cartListHTML(){return S.cart.length?S.cart.map((x,i)=>`<div class="ord"><div style="flex:1;min-width:180px"><b>${x.n}</b><small>${P0(x.p)} each</small></div><div class="qty"><button onclick="qty(${i},-1)" aria-label="Less">−</button><span>${x.q}</span><button onclick="qty(${i},1)" aria-label="More">+</button></div><b>${P0(x.p*x.q)}</b><button class="sq" onclick="qty(${i},-99)" aria-label="Remove">✕</button></div>`).join(""):`<div class="empty">Your cart is empty.<br><br><button class="b pri" onclick="nav('home')">Browse gift cards</button></div>`}
+function qty(i,d){const x=S.cart[i];x.q+=d;if(x.q<=0)S.cart.splice(i,1);else if(x.q>10)x.q=10;save();head();$("cl").innerHTML=cartListHTML();$("ctot").textContent=P0(cTot())}
+function pickCM(m){CT.m=m;document.querySelectorAll("[data-cm]").forEach(b=>b.classList.toggle("on",b.dataset.cm==m));$("cform").innerHTML=PMS.includes(m)?formHTML(m,"c"):""}
+function applyCV(){const c=CT.vc.trim().toUpperCase(),v=VCH[c];CT.v=0;let m="Invalid voucher code";
+ if(v){if(S.pts<v[1])m=`Needs ${v[1]} Vault Points – you have ${S.pts}`;else{CT.v=v[0];m=`Voucher applied: -${v[0]}%`}}
+ toast(m);$("cvm").textContent=CT.v?m:"";$("ctot").textContent=P0(cTot())}
+function pgCart(){return `<div class="top2"><h1>🛒 Cart</h1></div><div class="pgrid"><div>
+ <section class="pn"><h2><span class="num">1</span>Your items</h2><div id="cl">${cartListHTML()}</div></section>
+ <section class="pn"><h2><span class="num">2</span>Payment Method</h2>
+  <button class="vc${CT.m=="Vault Coins"?" on":""}" data-cm="Vault Coins" onclick="pickCM('Vault Coins')"><span class="lg coin">V</span>Vault Coins<small>${$$(S.bal)} · ${S.pts} pts</small></button>
+  <div class="pm">${PMS.map(m=>`<button class="${CT.m==m?"on":""}" data-cm="${m}" onclick="pickCM('${m}')"><span class="lg">${BRAND[m]}</span>${m}<small>No Minimum.</small></button>`).join("")}</div><div id="cform">${PMS.includes(CT.m)?formHTML(CT.m,"c"):""}</div></section>
+ </div><aside><section class="pn"><h2><span class="num">3</span>Order Confirmation</h2><h3 style="margin-top:0">Transaction Receipt (Required)</h3><p class="sm">Required: You must enter email to receive a transaction receipt</p>
+  <input type="email" autocomplete="email" placeholder="Input your Email" value="${CT.e}" oninput="CT.e=this.value" aria-label="Email">
+  <h3>Voucher Code</h3><div class="vrow"><input placeholder="(Optional)" value="${CT.vc}" oninput="CT.vc=this.value" aria-label="Voucher code"><button class="out" onclick="applyCV()">Apply</button></div><p class="okm" id="cvm">${CT.v?`Voucher applied: -${CT.v}%`:""}</p>
+  <div style="margin-top:20px"><small style="color:var(--mu)">Total</small><div style="font-size:28px;font-weight:700" id="ctot">${P0(cTot())}</div></div>
+  <button class="buy" style="width:100%;margin-top:14px" id="placeb" onclick="placeOrder()">Place order</button></section></aside></div>`}
+function placeOrder(){if(!S.cart.length){toast("Your cart is empty");return}
+ if(!CT.m){toast("Choose a payment method");return}
+ if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(CT.e.trim())){toast("Enter a valid email for your receipt");return}
+ if(sb&&!user){toast("Log in to buy");openAuth("in");return}
+ const p=cTot();
+ if(CT.m=="Vault Coins"){if(p>S.bal){toast("Not enough Vault Coins – deposit funds first");return}}
+ else{const err=validate(CT.m,"c");if(err){toast(err);return}}
+ const b=$("placeb");b.disabled=true;b.textContent="Processing…";
+ setTimeout(async()=>{const cs=[],f=1-CT.v/100;let pts=0;
+  S.cart.forEach(x=>{pts+=x.pts*x.q;for(let k=0;k<x.q;k++)cs.push({n:x.n,p:Math.round(x.p*f),m:CT.m,e:CT.e.trim(),c:mkCode(),t:Date.now()+cs.length,pt:x.pts})});
+  if(!await serverOrder(cs)){b.disabled=false;b.textContent="Place order";return}
+  if(!(sb&&user)&&CT.m=="Vault Coins")S.bal=+(S.bal-p).toFixed(2);S.pts+=pts;S.codes.unshift(...cs);S.cart=[];CT.v=0;CT.vc="";save();head();
+  $("gbox").innerHTML=`<div class="mh"><b>Order complete</b><button class="sq" onclick="closeGift()" aria-label="Close">✕</button></div><p style="margin:6px 0">${cs.length} code${cs.length>1?"s":""} · ${P0(p)} via ${CT.m} · +${pts} Vault Points</p>${cs.map(c=>`<small style="color:var(--mu)">${c.n}</small><div class="code" style="margin:4px 0 10px;font-size:17px">${c.c}</div>`).join("")}<p class="note">Saved under My Codes. A real store would also email the receipt to ${CT.e.trim()}; this demo sends nothing. Demo codes only, they can’t be redeemed.</p><button class="b pri" style="width:100%;margin-top:12px" onclick="closeGift();nav('codes')">View My Codes</button>`;
+  $("gm").classList.add("on");if(S.tab=="Cart")render()},1200)}
+const PAGES={Admin:pgAdmin,Cart:pgCart,Orders:pgOrders,MLBB:pgMlbb,Top:pgTop,AffL:pgAffL,AffP:pgAffP,Promo:pgPromo};
+/* ---------- auth & boot ---------- */
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let AU="in",AD={tab:"users",u:[],o:[]};
+function openAuth(m){if(!sb){toast("Login isn’t set up yet: add SUPABASE_URL and SUPABASE_ANON_KEY in Vercel, then redeploy");return}AU=m||"in";drawAuth();$("am").classList.add("on")}
+function closeAuth(){$("am").classList.remove("on")}
+function drawAuth(){const up=AU=="up";$("abox").innerHTML=`<div class="mh"><b>${up?"Create account":"Log in"}</b><button class="sq" onclick="closeAuth()" aria-label="Close">✕</button></div>
+<div class="amts" style="margin-top:10px"><button class="${up?"":"on"}" onclick="AU='in';drawAuth()">Log in</button><button class="${up?"on":""}" onclick="AU='up';drawAuth()">Register</button></div>
+${up?`<label>Full name</label><input id="an" autocomplete="name" placeholder="Juan Dela Cruz">`:""}
+<label>Email</label><input id="ae" type="email" autocomplete="email" placeholder="you@example.com">
+<label>Password</label><input id="ap" type="password" autocomplete="${up?"new-password":"current-password"}" placeholder="At least 6 characters">
+<button class="b pri" id="asub" style="width:100%;margin-top:16px" onclick="submitAuth()">${up?"Create account":"Log in"}</button>
+${up?"":`<button class="out" style="width:100%;margin-top:10px;padding:10px" onclick="forgotPw()">Forgot password?</button>`}
+<div style="text-align:center;color:var(--mu);margin:14px 0 8px;font-size:12px">or</div>
+<button class="b" style="width:100%;background:#fff;color:#222" onclick="loginGoogle()">Continue with Google</button><p class="note" id="amsg"></p>`}
+async function submitAuth(){const e=$("ae").value.trim(),p=$("ap").value,up=AU=="up";
+ if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)){toast("Enter a valid email");return}if(p.length<6){toast("Password must be at least 6 characters");return}
+ const b=$("asub");b.disabled=true;
+ const r=up?await sb.auth.signUp({email:e,password:p,options:{data:{full_name:$("an").value.trim().slice(0,80)}}}):await sb.auth.signInWithPassword({email:e,password:p});
+ b.disabled=false;if(r.error){toast(r.error.message);return}
+ if(up&&!r.data.session){$("amsg").textContent="Check your email to confirm your account, then log in.";return}
+ toast(up?"Account created":"Welcome back!")}
+async function forgotPw(){const e=$("ae").value.trim();if(!e){toast("Enter your email first");return}const r=await sb.auth.resetPasswordForEmail(e,{redirectTo:location.origin+location.pathname});toast(r.error?r.error.message:"Password reset email sent")}
+async function loginGoogle(){const r=await sb.auth.signInWithOAuth({provider:"google",options:{redirectTo:location.origin+location.pathname}});if(r.error)toast(r.error.message)}
+async function logout(){await sb.auth.signOut();user=null;S.role="";S.bal=5000;S.pts=0;S.codes=[];S.cart=[];authUI();nav("home");route()}
+async function loadProfile(){const r=await sb.from("profiles").select("balance,points,role").eq("id",user.id).maybeSingle();
+ if(r.data){S.bal=Number(r.data.balance);S.pts=r.data.points;S.role=r.data.role}
+ const o=await sb.from("orders").select("*").order("created_at",{ascending:false});
+ S.codes=(o.data||[]).map(x=>({n:esc(x.item_name),p:Number(x.price),m:esc(x.payment_method),e:esc(x.email),c:esc(x.code),t:Date.parse(x.created_at)}));
+ authUI();head();if(["Admin","Codes","Orders"].includes(S.tab))route()}
+function authUI(){$("auth").innerHTML=user?`<span class="bal">${esc((user.user_metadata&&user.user_metadata.full_name)||user.email)}</span> ${S.role=="admin"?`<button class="chip" onclick="nav('admin')">Admin</button>`:""} <button class="chip" onclick="logout()">Log out</button>`:`<button class="chip pri" onclick="openAuth('in')">Login</button> <button class="chip pri" onclick="openAuth('up')">Register</button>`}
+async function serverOrder(cs){if(!(sb&&user))return true;const r=await sb.rpc("place_order",{p_items:cs.map(c=>({n:c.n,p:c.p,m:c.m,e:c.e,c:c.c,pt:c.pt||0}))});if(r.error){toast(r.error.message);return false}S.bal=Number(r.data);return true}
+/* ---------- admin panel ---------- */
+function pgAdmin(){if(!(sb&&user&&S.role=="admin"))return `<div class="top2"><h1>Admin Panel</h1></div><div class="gg"><div class="empty">Admins only. Log in with an admin account.</div></div>`;
+ setTimeout(loadAdmin,0);return `<div class="top2"><h1>Admin Panel</h1></div><div id="adm"><div class="empty" style="background:var(--p)">Loading…</div></div>`}
+async function loadAdmin(){const [u,o]=await Promise.all([sb.from("profiles").select("*").order("created_at",{ascending:false}),sb.from("orders").select("*, profiles(email)").order("created_at",{ascending:false}).limit(200)]);
+ if(u.error||o.error){$("adm").innerHTML=`<div class="empty" style="background:var(--p)">${esc((u.error||o.error).message)}</div>`;return}AD.u=u.data;AD.o=o.data;drawAdmin()}
+function drawAdmin(){const rev=AD.o.reduce((s,x)=>s+Number(x.price),0);
+ $("adm").innerHTML=`<div class="stats"><div class="pn"><small>Users</small><div class="big">${AD.u.length}</div></div><div class="pn"><small>Orders (latest 200)</small><div class="big">${AD.o.length}</div></div><div class="pn"><small>Order value</small><div class="big">${P0(rev)}</div></div></div>
+ <div class="amts"><button class="${AD.tab=="users"?"on":""}" onclick="AD.tab='users';drawAdmin()">Users</button><button class="${AD.tab=="orders"?"on":""}" onclick="AD.tab='orders';drawAdmin()">Orders</button></div><div style="overflow-x:auto">`+(AD.tab=="users"?`<table class="tbl"><tr><th>Email</th><th>Name</th><th>Role</th><th>Balance</th><th>Set balance</th><th></th></tr>${AD.u.map(x=>`<tr><td>${esc(x.email)}</td><td>${esc(x.full_name)}</td><td>${esc(x.role)}</td><td>${$$(Number(x.balance))}</td><td><input type="number" min="0" id="ab_${esc(x.id)}" placeholder="${Number(x.balance)}" style="width:120px;padding:6px 10px"> <button class="b" onclick="adminBal('${esc(x.id)}')">Set</button></td><td>${x.id==user.id?"(you)":`<button class="b" onclick="adminRole('${esc(x.id)}','${x.role=="admin"?"user":"admin"}')">Make ${x.role=="admin"?"user":"admin"}</button>`}</td></tr>`).join("")}</table>`:`<table class="tbl"><tr><th>Date</th><th>Account</th><th>Item</th><th>Price</th><th>Method</th><th>Code</th></tr>${AD.o.map(x=>`<tr><td>${new Date(x.created_at).toLocaleString()}</td><td>${esc(x.profiles&&x.profiles.email)}</td><td>${esc(x.item_name)}</td><td>${P0(Number(x.price))}</td><td>${esc(x.payment_method)}</td><td>${esc(x.code)}</td></tr>`).join("")}</table>`)+`</div>`}
+async function adminBal(id){const v=$("ab_"+id).value;if(v===""){toast("Enter a balance");return}const r=await sb.rpc("admin_set_balance",{p_user:id,p_balance:+v});if(r.error){toast(r.error.message);return}toast("Balance updated");loadAdmin()}
+async function adminRole(id,role){const r=await sb.rpc("admin_set_role",{p_user:id,p_role:role});if(r.error){toast(r.error.message);return}toast("Role updated");loadAdmin()}
+$("q").addEventListener("input",e=>{GQ=e.target.value;if(S.tab!="Gifts")nav("home");else gList()});
+document.addEventListener("keydown",e=>{if(e.key=="Escape"){closePay();closeGift();closeMenu();closeAuth()}});
+addEventListener("hashchange",route);
+authUI();route();
+if(sb)sb.auth.onAuthStateChange((ev,ss)=>{user=ss?ss.user:null;authUI();if(user){closeAuth();loadProfile()}else S.role=""});
