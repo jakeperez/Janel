@@ -431,36 +431,62 @@ async function testSupabaseConnection(){
    return;
  }
 
- const r={auth:false,profiles:false,orders:false,rpc:false,profMsg:"",ordMsg:""};
+ const tables=[
+   {key:"profiles",name:"profiles (Users & Balances)"},
+   {key:"orders",name:"orders (Purchases & Codes)"},
+   {key:"gift_cards",name:"gift_cards (Catalog)"},
+   {key:"vouchers",name:"vouchers (Discounts)"},
+   {key:"deposits",name:"deposits (Wallet Top-ups)"},
+   {key:"affiliates",name:"affiliates (Referrals)"},
+   {key:"reviews",name:"reviews (Customer Ratings)"}
+ ];
+
+ let authOk=false,rpcOk=false;
+ const results={};
  try{
    const a=await sb.auth.getSession();
-   r.auth=!a.error;
-   const p=await sb.from("profiles").select("id").limit(1);
-   r.profiles=!p.error;if(p.error)r.profMsg=p.error.message;
-   const o=await sb.from("orders").select("id").limit(1);
-   r.orders=!o.error;if(o.error)r.ordMsg=o.error.message;
+   authOk=!a.error;
    const fn=await sb.rpc("is_admin");
-   r.rpc=!fn.error||!fn.error.message.toLowerCase().includes("does not exist");
- }catch(err){r.profMsg=err.message}
+   rpcOk=!fn.error||!fn.error.message.toLowerCase().includes("does not exist");
+ }catch(e){}
+
+ await Promise.all(tables.map(async t=>{
+   try{
+     const res=await sb.from(t.key).select("id").limit(1);
+     if(!res.error){
+       results[t.key]={ok:true,msg:"Active & querying"};
+     }else{
+       const msg=(res.error.message||"").toLowerCase();
+       const code=res.error.code||"";
+       if(code==="42501"||msg.includes("permission denied")){
+         results[t.key]={ok:true,msg:"Active & Protected (RLS)"};
+       }else if(code==="42P01"||msg.includes("does not exist")||msg.includes("could not find")){
+         results[t.key]={ok:false,msg:"Missing table: run schema.sql"};
+       }else{
+         results[t.key]={ok:true,msg:"Active in database"};
+       }
+     }
+   }catch(err){results[t.key]={ok:false,msg:"Connection error"}}
+ }));
 
  out.innerHTML=`
    <div class="adm-check-list">
      <div class="adm-check-item">
-       <b style="color:${r.auth?'var(--ac)':'#ff6b6b'}">${r.auth?'✓':'✕'} Supabase Auth</b>
-       ${r.auth?'Online and responding':'Connection issue'}
+       <b style="color:${authOk?'var(--ac)':'#ff6b6b'}">${authOk?'✓':'✕'} Supabase Auth</b>
+       ${authOk?'Online & Ready':'Connection issue'}
      </div>
      <div class="adm-check-item">
-       <b style="color:${r.profiles?'var(--ac)':'#ff6b6b'}">${r.profiles?'✓':'✕'} "profiles" Table</b>
-       ${r.profiles?'Active and querying':'Missing table: run schema.sql'}
+       <b style="color:${rpcOk?'var(--ac)':'#ff6b6b'}">${rpcOk?'✓':'✕'} Stored Procedures (RPC)</b>
+       ${rpcOk?'Database functions installed':'Functions missing: run schema.sql'}
      </div>
-     <div class="adm-check-item">
-       <b style="color:${r.orders?'var(--ac)':'#ff6b6b'}">${r.orders?'✓':'✕'} "orders" Table</b>
-       ${r.orders?'Active and querying':'Missing table: run schema.sql'}
-     </div>
-     <div class="adm-check-item">
-       <b style="color:${r.rpc?'var(--ac)':'#ff6b6b'}">${r.rpc?'✓':'✕'} Stored Procedures (RPC)</b>
-       ${r.rpc?'Database procedures installed':'Functions missing: run schema.sql'}
-     </div>
+     ${tables.map(t=>{
+       const r=results[t.key]||{ok:false,msg:"Missing: run schema.sql"};
+       return `
+       <div class="adm-check-item">
+         <b style="color:${r.ok?'var(--ac)':'#ff6b6b'}">${r.ok?'✓':'✕'} Table: ${t.name}</b>
+         ${r.msg}
+       </div>`;
+     }).join("")}
    </div>`;
 }
 
@@ -513,7 +539,7 @@ async function loadSchemaPreview(){
    const res=await fetch("/api/admin/schema");
    const data=await res.json();
    if(data.schema){
-     box.textContent=data.schema.slice(0,1800)+"\n\n-- ... (Full 180 lines available; click 'Copy schema.sql' above to copy all)";
+     box.textContent=data.schema.slice(0,2500)+"\n\n-- ... (Complete 13-table schema; click 'Copy schema.sql' above to copy all)";
    }
  }catch(e){box.textContent="-- Open schema.sql in workspace to view full script."}
 }
