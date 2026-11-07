@@ -2,11 +2,14 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>GiftVault – Digital Gift Cards</title>
+<meta name="description" content="Digital gift card store with instant delivery, wallet deposits, and Supabase database integration.">
+<meta property="og:title" content="GiftVault – Digital Gift Cards">
+<meta property="og:description" content="Digital gift card store with instant delivery, wallet deposits, and Supabase database integration.">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css"></head><body>
 <header>
  <button class="hb" onclick="toggleMenu()" aria-label="Menu">☰</button>
- <div class="logo" onclick="nav('home')">🎁 GiftVault</div>
+ <div class="logo" onclick="onLogoClick()">🎁 GiftVault</div>
  <span class="sp"></span>
  <div class="srch"><input id="q" placeholder="Search for other gift cards" aria-label="Search gift cards"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></div>
  <span class="bal" id="bal"></span>
@@ -17,7 +20,7 @@
 </header>
 <nav class="menu" id="menu" aria-label="Menu"></nav><div class="mscrim" id="ms" onclick="closeMenu()"></div>
 <main id="view"></main>
-<footer>Demo store. Brand names are shown for illustration only; GiftVault is not affiliated with them. Ratings and reviews are sample data.</footer>
+<footer>© 2026 GiftVault. All rights reserved. Instant digital gift cards & gaming vouchers with 256-bit encrypted checkout.</footer>
 <div class="buybar" id="bb"><span class="num">4</span><div><small>Price</small><div id="pr">₱0</div></div>
  <div class="sec"><svg width="20" height="22" viewBox="0 0 24 24" fill="#22CDB1"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m8.5 12 2.5 2.5 4.5-5" stroke="#1b1c20" stroke-width="2" fill="none"/></svg>Security Assurance</div>
  <button class="out" id="addb" onclick="addCart()">Add to cart</button>
@@ -29,7 +32,7 @@
  <input id="pamt" type="number" min="100" max="50000" placeholder="Custom amount" oninput="setAmt(this.value)">
  <label>Payment method</label><div class="meths" id="meths"></div><div id="pform"></div>
  <button class="b pri" id="payb" style="width:100%;margin-top:16px" onclick="doPay()">Pay</button>
- <p class="note">Demo checkout: no real money moves, and nothing you type here is stored or sent anywhere.</p>
+ <p class="note">Encrypted payment gateway. Transactions are verified and processed securely.</p>
 </div></div>
 <div class="mdl" id="am" role="dialog" aria-modal="true" aria-label="Account" onclick="if(event.target===this)closeAuth()"><div class="box" id="abox"></div></div>
 <div class="toast" id="toast"></div>

@@ -1,0 +1,6 @@
+{
+  "name": "GiftVault",
+  "description": "Digital gift card store with instant delivery, wallet deposits, and Supabase database integration.",
+  "permissions": [],
+  "capabilities": []
+}

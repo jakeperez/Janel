@@ -19,8 +19,16 @@ if (!url || !key) {
   console.warn("WARNING: SUPABASE_URL or SUPABASE_ANON_KEY is not set. The site will build, but login stays disabled.");
 }
 
+if (!fs.existsSync("public")) {
+  fs.mkdirSync("public", { recursive: true });
+}
+
 fs.writeFileSync(
   "public/config.js",
   "window.GV_CONFIG = " + JSON.stringify({ SUPABASE_URL: url, SUPABASE_ANON_KEY: key }) + ";\n"
 );
-console.log("public/config.js written (" + (url && key ? "Supabase configured" : "Supabase NOT configured") + ")");
+fs.writeFileSync(
+  "config.js",
+  "window.GV_CONFIG = " + JSON.stringify({ SUPABASE_URL: url, SUPABASE_ANON_KEY: key }) + ";\n"
+);
+console.log("config.js written (" + (url && key ? "Supabase configured" : "Supabase NOT configured") + ")");

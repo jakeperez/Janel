@@ -5,7 +5,14 @@
   "description": "GiftVault gift card store (static site + Supabase)",
   "scripts": {
     "build": "node build.js",
-    "dev": "node build.js && npx serve public -l 3000"
+    "dev": "node server.js",
+    "start": "node server.js",
+    "lint": "node --check server.js build.js script.js config.js"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^5.3.0"
+  }
 }

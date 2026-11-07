@@ -150,3 +150,17 @@ footer{text-align:center;color:var(--mu);font-size:12px;padding:0 24px 30px}
   /* --txt: none; */
 }
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px}.stats .pn{margin:0;padding:18px}.stats small{color:var(--mu)}
+/* Admin Database Connection Styles */
+.adm-tabs{display:flex;gap:10px;margin:18px 0 20px;border-bottom:1px solid var(--ln);padding-bottom:12px}
+.adm-tabs button{padding:10px 18px;border-radius:12px;font-weight:700;font-size:14px;background:var(--p2);color:var(--mu);transition:all .15s}
+.adm-tabs button.on{background:var(--ac);color:var(--aco)}
+.adm-card{background:var(--p);border:1px solid var(--ln);border-radius:18px;padding:24px;margin-bottom:18px}
+.adm-card h3{margin:0 0 14px;font-size:18px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.adm-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px}
+.adm-badge.connected{background:#0d4b3f;color:#bff3e2;border:1px solid #1f7a63}
+.adm-badge.standby{background:#4b380d;color:#ffe599;border:1px solid #8c6818}
+.adm-check-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:16px 0}
+.adm-check-item{background:var(--p2);border:1px solid var(--ln);border-radius:12px;padding:12px 14px;font-size:13px}
+.adm-check-item b{display:block;margin-bottom:3px;font-size:14px}
+.adm-sql-box{font:12px/1.5 ui-monospace,Menlo,monospace;background:#141518;border:1px solid var(--ln);border-radius:12px;padding:16px;max-height:240px;overflow:auto;white-space:pre-wrap;color:#c0c3cc;margin:12px 0}
+

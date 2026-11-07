@@ -176,4 +176,4 @@ grant execute on function public.is_admin(), public.deposit_demo(numeric), publi
 
 -- ---------- 7. MAKE YOUR FIRST ADMIN ----------
 -- Register on the site first, then put YOUR email below and run just this line:
--- update public.profiles set role = 'admin' where email = 'YOUR-EMAIL@gmail.com';
+-- update public.profiles set role = 'admin' where email = 'jkoyp3255@gmail.com';
