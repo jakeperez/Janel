@@ -1,41 +1,294 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>GiftVault – Digital Gift Cards</title>
-<meta name="description" content="Digital gift card store with instant delivery, wallet deposits, and Supabase database integration.">
-<meta property="og:title" content="GiftVault – Digital Gift Cards">
-<meta property="og:description" content="Digital gift card store with instant delivery, wallet deposits, and Supabase database integration.">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css"></head><body>
-<header>
- <button class="hb" onclick="toggleMenu()" aria-label="Menu">☰</button>
- <div class="logo" onclick="onLogoClick()">🎁 GiftVault</div>
- <span class="sp"></span>
- <div class="srch"><input id="q" placeholder="Search for other gift cards" aria-label="Search gift cards"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></div>
- <span class="bal" id="bal"></span>
- <button class="chip" onclick="openPay()">+ Deposit</button>
- <button class="chip" id="tc" onclick="nav('cart')"></button>
- <button class="chip" id="t2" onclick="nav('codes')"></button>
- <span id="auth"></span>
-</header>
-<nav class="menu" id="menu" aria-label="Menu"></nav><div class="mscrim" id="ms" onclick="closeMenu()"></div>
-<main id="view"></main>
-<footer>© 2026 GiftVault. All rights reserved. Instant digital gift cards & gaming vouchers with 256-bit encrypted checkout.</footer>
-<div class="buybar" id="bb"><span class="num">4</span><div><small>Price</small><div id="pr">₱0</div></div>
- <div class="sec"><svg width="20" height="22" viewBox="0 0 24 24" fill="#22CDB1"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/><path d="m8.5 12 2.5 2.5 4.5-5" stroke="#1b1c20" stroke-width="2" fill="none"/></svg>Security Assurance</div>
- <button class="out" id="addb" onclick="addCart()">Add to cart</button>
- <button class="buy" id="buyb" onclick="buyNow()">Buy now</button></div>
-<div class="mdl" id="gm" role="dialog" aria-modal="true" aria-label="Order" onclick="if(event.target===this)closeGift()"><div class="box" id="gbox"></div></div>
-<div class="mdl" id="pay" role="dialog" aria-modal="true" aria-label="Deposit funds" onclick="if(event.target===this)closePay()"><div class="box">
- <div class="mh"><b>Deposit Vault Coins</b><button class="sq" onclick="closePay()" aria-label="Close">✕</button></div>
- <label>Amount (PHP)</label><div class="amts" id="amts"></div>
- <input id="pamt" type="number" min="100" max="50000" placeholder="Custom amount" oninput="setAmt(this.value)">
- <label>Payment method</label><div class="meths" id="meths"></div><div id="pform"></div>
- <button class="b pri" id="payb" style="width:100%;margin-top:16px" onclick="doPay()">Pay</button>
- <p class="note">Encrypted payment gateway. Transactions are verified and processed securely.</p>
-</div></div>
-<div class="mdl" id="am" role="dialog" aria-modal="true" aria-label="Account" onclick="if(event.target===this)closeAuth()"><div class="box" id="abox"></div></div>
-<div class="toast" id="toast"></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="/config.js"></script>
-<script type="module" src="/script.js"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>GiftVault – Premium Digital Gift Card Marketplace</title>
+  <meta name="description" content="Discover 100% verified digital gift cards, gaming vouchers, and subscriptions delivered instantly. Secure checkout with GCash, PayPal, Card & Vault Coins.">
+  <meta property="og:title" content="GiftVault – Premium Digital Gift Card Marketplace">
+  <meta property="og:description" content="Instant digital gift cards, gaming credits, and digital vouchers with 256-bit encrypted checkout.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Living Background Environment: Animated Blobs, Canvas Stardust & Grain Texture -->
+  <div class="ambient-mesh" aria-hidden="true">
+    <div class="ambient-blob blob-1"></div>
+    <div class="ambient-blob blob-2"></div>
+    <div class="ambient-blob blob-3"></div>
+  </div>
+  <canvas id="ambient-canvas" class="ambient-canvas" aria-hidden="true"></canvas>
+  <div class="noise-overlay" aria-hidden="true"></div>
+
+  <!-- Primary Header & Navigation Bar (Scroll morphing, glassmorphic) -->
+  <header class="site-header" id="header">
+    <div class="nav-container">
+      <div class="nav-left">
+        <button class="nav-icon-btn mobile-menu-btn" onclick="toggleMenu()" aria-label="Open menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="brand-lockup" onclick="onLogoClick()" role="button" tabindex="0" aria-label="GiftVault home">
+          <div class="brand-badge">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" fill="url(#gv-brand-g1)" stroke="#22cdb1" stroke-width="1.4"/>
+              <path d="M12 2v20M3 7l9 5 9-5M3 17l9-5 9 5" stroke="#22cdb1" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+              <circle cx="12" cy="12" r="3" fill="#22cdb1"/>
+              <defs>
+                <linearGradient id="gv-brand-g1" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#18232c"/>
+                  <stop offset="1" stop-color="#0a1219"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="brand-name">Gift<span class="brand-accent">Vault</span></span>
+        </div>
+      </div>
+
+      <!-- Modern Interactive Search Field with Dropdown Suggestions & Shortcut -->
+      <div class="nav-search-wrap">
+        <div class="search-box" id="search-box">
+          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input id="q" type="text" placeholder="Search gift cards, games, subscriptions..." autocomplete="off" spellcheck="false" aria-label="Search digital cards" onfocus="openSearchDrop()" onblur="setTimeout(closeSearchDrop, 200)">
+          <span class="search-shortcut" id="search-shortcut" onclick="$('q').focus()" title="Press ⌘K or Ctrl+K to search">
+            <kbd class="key-symbol">⌘</kbd><kbd>K</kbd>
+          </span>
+          <button class="search-clear-btn" id="q-clear" onclick="$('q').value='';GQ='';gList();this.style.display='none'" aria-label="Clear search" style="display:none">✕</button>
+        </div>
+
+        <!-- Animated Search Suggestions Dropdown -->
+        <div class="search-dropdown" id="search-dropdown" style="display:none">
+          <div class="search-drop-section">
+            <span class="search-drop-title">RECENT SEARCHES</span>
+            <div class="search-pills-row">
+              <button class="search-chip" onmousedown="quickFilter('Steam')">🔥 Steam Wallet</button>
+              <button class="search-chip" onmousedown="quickFilter('PlayStation')">PlayStation Store</button>
+              <button class="search-chip" onmousedown="quickFilter('Binance')">Binance Gift Card</button>
+            </div>
+          </div>
+          <div class="search-drop-section">
+            <span class="search-drop-title">TRENDING NOW</span>
+            <div class="search-quick-results">
+              <div class="search-quick-item" onmousedown="nav('card0')">
+                <span class="sq-dot" style="background:#2a6fa8"></span>
+                <span class="sq-name">Steam Wallet Code</span>
+                <span class="sq-badge">From ₱354</span>
+              </div>
+              <div class="search-quick-item" onmousedown="nav('card5')">
+                <span class="sq-dot" style="background:#0a62c9"></span>
+                <span class="sq-name">PlayStation Store Gift Card</span>
+                <span class="sq-badge">5.0★</span>
+              </div>
+              <div class="search-quick-item" onmousedown="nav('card1')">
+                <span class="sq-dot" style="background:#f0b90b"></span>
+                <span class="sq-name">Binance Crypto Card</span>
+                <span class="sq-badge">0% Fee</span>
+              </div>
+              <div class="search-quick-item" onmousedown="nav('card10')">
+                <span class="sq-dot" style="background:#107c10"></span>
+                <span class="sq-name">Xbox Gift Card</span>
+                <span class="sq-badge">Instant</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Navigation Actions -->
+      <div class="nav-right">
+        <!-- Digital Wallet Component -->
+        <div class="wallet-pill" id="wallet-pill" onclick="openPay()" title="Vault Coins Balance & Deposit">
+          <div class="wallet-icon">
+            <span>V</span>
+          </div>
+          <div class="wallet-info">
+            <span class="wallet-label">BALANCE</span>
+            <span class="wallet-val" id="bal">₱0.00</span>
+          </div>
+          <button class="wallet-add-btn" aria-label="Add funds">+</button>
+        </div>
+
+        <button class="nav-link-btn" id="t2" onclick="nav('codes')" title="My Codes">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span class="nav-btn-label">My Codes</span>
+          <span class="nav-badge-count" id="codes-count">0</span>
+        </button>
+
+        <button class="nav-link-btn cart-btn" id="tc" onclick="nav('cart')" title="Shopping Cart">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          <span class="nav-btn-label">Cart</span>
+          <span class="cart-counter" id="cart-counter">0</span>
+        </button>
+
+        <div class="auth-slot" id="auth"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Flying Cart Thumbnail Animation Anchor -->
+  <div id="cart-flyer" class="cart-flyer" aria-hidden="true"></div>
+
+  <!-- Mobile Drawer Menu -->
+  <nav class="side-drawer" id="menu" aria-label="Navigation drawer"></nav>
+  <div class="drawer-overlay" id="ms" onclick="closeMenu()"></div>
+
+  <!-- Main View Container (Living Hero, Trending, Featured Deal, Bento, Filter Grid, Detail, etc.) -->
+  <main id="view" class="main-content"></main>
+
+  <!-- Modern Marketplace Footer -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="brand-lockup">
+            <div class="brand-badge mini">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" fill="#22cdb1" opacity="0.2"/>
+                <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke="#22cdb1" stroke-width="1.6"/>
+              </svg>
+            </div>
+            <span class="brand-name">Gift<span class="brand-accent">Vault</span></span>
+          </div>
+          <p class="footer-tagline">
+            The modern digital voucher exchange. Instant cryptographic delivery for top-tier gaming, entertainment, and digital assets.
+          </p>
+          <div class="footer-meta-pill">
+            <span class="pulse-dot"></span>
+            <span>All Systems 100% Operational · 256-Bit SSL</span>
+          </div>
+        </div>
+
+        <div class="footer-col">
+          <h4>Marketplace</h4>
+          <a onclick="nav('home')">All Gift Cards</a>
+          <a onclick="nav('promo')">Promo Member Tiers</a>
+          <a onclick="nav('top20')">Top 20 Leaderboard</a>
+          <a onclick="nav('orders')">Track Order</a>
+        </div>
+
+        <div class="footer-col">
+          <h4>Services</h4>
+          <a onclick="nav('mlbb')">MLBB Server Validator</a>
+          <a onclick="nav('affp')">Affiliate Commission</a>
+          <a onclick="nav('affl')">Affiliate Leaderboard</a>
+          <a onclick="openPay()">Vault Coins Wallet</a>
+        </div>
+
+        <div class="footer-col">
+          <h4>Security & Trust</h4>
+          <div class="trust-list">
+            <span>✓ Instant Code Dispatch</span>
+            <span>✓ Official Distributor Stock</span>
+            <span>✓ Encrypted GCash & Card Checkout</span>
+            <span>✓ 24/7 Redemptions Support</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>© 2026 GiftVault Inc. All registered trademarks and digital card logos belong to their respective copyright holders.</p>
+        <div class="footer-links">
+          <span onclick="toast('Encrypted 256-bit TLS Gateway')">Security</span>
+          <span onclick="toast('Terms & Conditions available on request')">Terms</span>
+          <span onclick="toast('Privacy compliant with PCI-DSS guidelines')">Privacy</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Fixed Floating Mobile Bottom Navigation Bar -->
+  <nav class="mobile-bottom-bar" aria-label="Mobile Navigation">
+    <button class="mob-nav-btn active" id="mob-home" onclick="nav('home')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Store</span>
+    </button>
+    <button class="mob-nav-btn" id="mob-search" onclick="focusSearch()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <span>Search</span>
+    </button>
+    <button class="mob-nav-btn" id="mob-cart" onclick="nav('cart')">
+      <div class="mob-icon-wrap">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        <span class="mob-badge" id="mob-cart-badge" style="display:none">0</span>
+      </div>
+      <span>Cart</span>
+    </button>
+    <button class="mob-nav-btn" id="mob-codes" onclick="nav('codes')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <span>My Codes</span>
+    </button>
+    <button class="mob-nav-btn" id="mob-profile" onclick="handleProfileClick()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Account</span>
+    </button>
+  </nav>
+
+  <!-- Sticky Purchase Bar for Product View -->
+  <div class="buybar" id="bb">
+    <div class="buybar-left">
+      <span class="buybar-step-pill">Step 4</span>
+      <div>
+        <small class="buybar-label">Total Payable</small>
+        <div class="buybar-price" id="pr">₱0</div>
+      </div>
+    </div>
+    <div class="buybar-assurance">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22cdb1" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span>Instant Dispatch Guaranteed</span>
+    </div>
+    <div class="buybar-actions">
+      <button class="btn-secondary" id="addb" onclick="addCart()">Add to Cart</button>
+      <button class="btn-primary" id="buyb" onclick="buyNow()">Buy Now</button>
+    </div>
+  </div>
+
+  <!-- Modal: Purchase Success / Code Display -->
+  <div class="modal-backdrop" id="gm" role="dialog" aria-modal="true" aria-label="Order confirmation" onclick="if(event.target===this)closeGift()">
+    <div class="modal-card" id="gbox"></div>
+  </div>
+
+  <!-- Modal: Deposit Vault Coins -->
+  <div class="modal-backdrop" id="pay" role="dialog" aria-modal="true" aria-label="Deposit Vault Coins" onclick="if(event.target===this)closePay()">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3>Deposit Vault Coins</h3>
+          <p class="modal-sub">Add funds instantly to your digital balance with zero transaction fees.</p>
+        </div>
+        <button class="modal-close-btn" onclick="closePay()" aria-label="Close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <label class="field-label">Select Amount (PHP)</label>
+        <div class="quick-amount-grid" id="amts"></div>
+        <input id="pamt" type="number" min="100" max="50000" placeholder="Custom amount (₱100 - ₱50,000)" oninput="setAmt(this.value)">
+
+        <label class="field-label" style="margin-top:16px">Choose Payment Method</label>
+        <div class="methods-grid" id="meths"></div>
+        <div id="pform"></div>
+
+        <button class="btn-primary full-width" id="payb" style="margin-top:20px" onclick="doPay()">Pay</button>
+        <div class="security-footnote">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>256-bit encrypted checkout. Funds credited immediately.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Customer Login & Register -->
+  <div class="modal-backdrop" id="am" role="dialog" aria-modal="true" aria-label="Authentication" onclick="if(event.target===this)closeAuth()">
+    <div class="modal-card" id="abox"></div>
+  </div>
+
+  <!-- Floating Notification Toast -->
+  <div class="toast-notification" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="/config.js"></script>
+  <script type="module" src="/script.js"></script>
+</body>
+</html>

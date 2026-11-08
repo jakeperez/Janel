@@ -24,7 +24,7 @@ create table if not exists public.profiles (
   avatar_url      text,
   phone           text,
   role            text not null default 'user' check (role in ('user','admin')),
-  balance         numeric(12,2) not null default 5000 check (balance >= 0),
+  balance         numeric(12,2) not null default 0 check (balance >= 0),
   points          integer not null default 0 check (points >= 0),
   tier            text not null default 'Member' check (tier in ('Member','Silver','Gold')),
   referral_code   text unique,
