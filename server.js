@@ -12,7 +12,9 @@ if (fs.existsSync('.env')) {
         const idx = trimmed.indexOf('=');
         const k = trimmed.substring(0, idx).trim();
         const v = trimmed.substring(idx + 1).trim();
-        if (!process.env[k]) process.env[k] = v;
+        if (v && (!process.env[k] || process.env[k].includes('paste') || process.env[k].includes('xrfehvxqchskxcjytkvv'))) {
+          process.env[k] = v;
+        }
       }
     }
   } catch (e) {
@@ -35,14 +37,14 @@ app.use(express.json());
 
 // Helper to resolve Supabase credentials from any standard environment variable
 function getSupabaseCredentials() {
-  const url = (
+  let url = (
     process.env.SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.VITE_SUPABASE_URL ||
     ''
   ).trim();
 
-  const key = (
+  let key = (
     process.env.SUPABASE_ANON_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env.VITE_SUPABASE_ANON_KEY ||
@@ -50,13 +52,18 @@ function getSupabaseCredentials() {
     ''
   ).trim();
 
+  if (key.toLowerCase().includes('paste')) key = '';
+  if (!url || url.includes('xrfehvxqchskxcjytkvv')) {
+    url = 'https://ruiqopolqxrarjexddsl.supabase.co';
+  }
+
   return { url, key };
 }
 
 // API: Check database status
 app.get('/api/status', (req, res) => {
   const { url, key } = getSupabaseCredentials();
-  const configured = Boolean(url && key && !key.toLowerCase().includes('paste'));
+  const configured = Boolean(url && key && !key.toLowerCase().includes('paste') && key.length > 20);
   res.json({ configured, url: url || '', isVercel: Boolean(process.env.VERCEL) });
 });
 

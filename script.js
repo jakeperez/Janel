@@ -1,5 +1,9 @@
-// Values come from config.js, which "npm run build" writes from your environment variables.
-let CFG=window.GV_CONFIG||{},SB_URL=CFG.SUPABASE_URL||"https://xrfehvxqchskxcjytkvv.supabase.co",SB_KEY=CFG.SUPABASE_ANON_KEY||"";
+// Values come from config.js and .env, with automatic persistent fallback to localStorage
+let localSB=null;
+try{localSB=JSON.parse(localStorage.getItem("giftvault_supabase")||"null")}catch(e){}
+let CFG=window.GV_CONFIG||{};
+let SB_URL=(localSB&&localSB.url)||CFG.SUPABASE_URL||"https://ruiqopolqxrarjexddsl.supabase.co";
+let SB_KEY=(localSB&&localSB.key)||CFG.SUPABASE_ANON_KEY||"";
 // name, wordmark, [color1,color2], amounts (USD), review count, discount %
 const GC=[["Steam Wallet Code","STEAM",["#1B2838","#2A6FA8"],[5,10,20,50,100],518,3],["Binance Gift Card","BINANCE",["#FFCB05","#F2B100"],[10,25,50,100],231,0],["Bstation / Bilibili","BILIBILI",["#27C7FF","#2B7BFF"],[5,10,25],12,0],["DramaBox Voucher","DRAMABOX",["#FF2D6F","#FF7A1A"],[5,10,20],1,0],["Mobile Legends Epin","MOBILE LEGENDS",["#7B3FE4","#2A8CFF"],[5,10,25,50],2,0],["PlayStation Store Gift Card (PSN)","PLAYSTATION",["#0A62C9","#0B3C94"],[10,25,50,100],165,0],["Nintendo eShop (USD)","NINTENDO eSHOP",["#FF7A00","#FF9A1F"],[10,20,35,50],46,0],["PlayStation Singapore (PSN SGD)","PSN SGD",["#0A2A8A","#06195C"],[10,20,50],24,0],["Voucher Legend of YMIR","YMIR",["#46464B","#141416"],[5,10,25],9,5],["Blizzard Gift Card","BLIZZARD",["#0F6FC0","#06264A"],[20,50,100],77,0],["Xbox Gift Card","XBOX",["#1E9A1E","#0B6B0B"],[10,25,50,100],134,0],["NetEase Pay Gift Card","NETEASE PAY",["#D12A45","#FF5470"],[5,10,25],18,0],["Google Play Gift Card","GOOGLE PLAY",["#2E2E32","#0A0A0C"],[5,10,25,50,100],203,0],["Voucher Minecraft","MINECRAFT",["#5FAE2E","#7B5A3A"],[10,25,50],64,8],["Nintendo Switch Online","SWITCH ONLINE",["#E60012","#B8000F"],[8,20,35],41,0]];
 const TORN="polygon(0 0,100% 0,100% 86%,"+Array.from({length:14},(_,i)=>`${(100-(i+1)*100/14).toFixed(1)}% ${i%2?94:86}%`).join(",")+")";
@@ -511,8 +515,9 @@ async function saveSupabaseConfig(){
 
    SB_URL=url;
    SB_KEY=key;
+   try{localStorage.setItem("giftvault_supabase",JSON.stringify({url,key}))}catch(e){}
    sb=supabase.createClient(url,key,{auth:{flowType:"pkce"}});
-   toast("✓ Supabase Database Connected!");
+   toast("✓ Supabase Connected & Saved!");
    loadAdmin();
  }catch(err){
    toast("Error: "+err.message);
@@ -608,5 +613,15 @@ if(sb)sb.auth.onAuthStateChange((ev,ss)=>{
  if(user&&isOwnerAdmin(user.email))S.role="admin";
  authUI();
  if(user){closeAuth();loadProfile()}else S.role=""
+});
+
+// Expose all interactive functions to window for Vite module and inline onclick compatibility
+Object.assign(window, {
+  nav, route, render, openProduct, pickItem, pickM, applyV, buyNow, closeGift,
+  openPay, closePay, setAmt, drawAmts, drawMeths, drawPayBtn, doPay, toggleMenu,
+  closeMenu, chkM, copyRef, addCart, qty, pickCM, applyCV, placeOrder, openAuth,
+  closeAuth, drawAuth, submitAuth, forgotPw, loginGoogle, logout, onLogoClick,
+  pgAdmin, submitAdminLogin, loadAdmin, drawAdmin, testSupabaseConnection,
+  saveSupabaseConfig, copySchemaSql, loadSchemaPreview, adminBal, adminRole
 });
 

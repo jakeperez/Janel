@@ -4,8 +4,9 @@
   "private": true,
   "description": "GiftVault gift card store (static site + Supabase)",
   "scripts": {
-    "build": "node build.js",
-    "dev": "node server.js",
+    "dev": "vite --port 3000 --host 0.0.0.0",
+    "build": "node build.js && vite build",
+    "preview": "vite preview --port 3000 --host 0.0.0.0",
     "start": "node server.js",
     "lint": "node --check server.js build.js script.js config.js api/index.js"
   },
@@ -13,6 +14,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "express": "^5.3.0"
+    "express": "^5.3.0",
+    "vite": "^8.3.6"
   }
 }
