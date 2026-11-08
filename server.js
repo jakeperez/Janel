@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 
-// Load .env file if it exists
+// Load .env file if it exists (local or self-hosted)
 if (fs.existsSync('.env')) {
   try {
     const envLines = fs.readFileSync('.env', 'utf-8').split('\n');
@@ -28,17 +28,36 @@ try {
 }
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
 
 app.use(express.json());
 
+// Helper to resolve Supabase credentials from any standard environment variable
+function getSupabaseCredentials() {
+  const url = (
+    process.env.SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    ''
+  ).trim();
+
+  const key = (
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_KEY ||
+    ''
+  ).trim();
+
+  return { url, key };
+}
+
 // API: Check database status
 app.get('/api/status', (req, res) => {
-  const url = (process.env.SUPABASE_URL || '').trim();
-  const key = (process.env.SUPABASE_ANON_KEY || '').trim();
+  const { url, key } = getSupabaseCredentials();
   const configured = Boolean(url && key && !key.toLowerCase().includes('paste'));
-  res.json({ configured, url: url || '' });
+  res.json({ configured, url: url || '', isVercel: Boolean(process.env.VERCEL) });
 });
 
 // API: Save Supabase database connection configuration from Admin Panel
@@ -70,26 +89,29 @@ app.post('/api/admin/supabase-config', (req, res) => {
   process.env.SUPABASE_URL = cleanUrl;
   process.env.SUPABASE_ANON_KEY = cleanKey;
 
-  // Persist to .env
-  const envContent = `SUPABASE_URL=${cleanUrl}\nSUPABASE_ANON_KEY=${cleanKey}\n`;
+  // Persist to .env and config.js if filesystem is writable
   try {
+    const envContent = `SUPABASE_URL=${cleanUrl}\nSUPABASE_ANON_KEY=${cleanKey}\n`;
     fs.writeFileSync('.env', envContent, 'utf-8');
   } catch (e) {
-    console.warn('Could not write .env:', e.message);
+    // On Vercel serverless instances, filesystem is read-only
+    console.log('[Admin] Running on read-only runtime (e.g. Vercel). Environment updated in memory.');
   }
 
-  // Persist to config.js and public/config.js
-  const cfgPayload = `window.GV_CONFIG = ${JSON.stringify({ SUPABASE_URL: cleanUrl, SUPABASE_ANON_KEY: cleanKey })};\n`;
   try {
+    const cfgPayload = `window.GV_CONFIG = ${JSON.stringify({ SUPABASE_URL: cleanUrl, SUPABASE_ANON_KEY: cleanKey })};\n`;
     if (!fs.existsSync('public')) fs.mkdirSync('public', { recursive: true });
     fs.writeFileSync('public/config.js', cfgPayload, 'utf-8');
     fs.writeFileSync('config.js', cfgPayload, 'utf-8');
-  } catch (e) {
-    console.warn('Could not write config.js:', e.message);
-  }
+  } catch (e) {}
 
   console.log(`[Admin] Supabase database connection updated to ${cleanUrl}`);
-  res.json({ success: true, message: 'Supabase database configuration saved and connected.', url: cleanUrl });
+  res.json({
+    success: true,
+    message: 'Supabase database configuration saved and connected.',
+    url: cleanUrl,
+    note: process.env.VERCEL ? 'On Vercel, also ensure SUPABASE_URL and SUPABASE_ANON_KEY are added to Vercel Project Settings > Environment Variables for all deployments.' : ''
+  });
 });
 
 // API: Get schema.sql for admin SQL helper
@@ -105,10 +127,9 @@ app.get('/api/admin/schema', (req, res) => {
   }
 });
 
-// Dynamic config endpoint to always serve current env vars
+// Dynamic config endpoint to always serve current env vars (Vercel & local)
 app.get('/config.js', (req, res) => {
-  const url = (process.env.SUPABASE_URL || '').trim();
-  const key = (process.env.SUPABASE_ANON_KEY || '').trim();
+  const { url, key } = getSupabaseCredentials();
   res.type('application/javascript');
   if (url && key) {
     res.send(`window.GV_CONFIG = ${JSON.stringify({ SUPABASE_URL: url, SUPABASE_ANON_KEY: key })};\n`);
@@ -135,6 +156,11 @@ app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, HOST, () => {
-  console.log(`GiftVault server listening at http://${HOST}:${PORT}`);
-});
+// Only listen when executed directly (not when required by Vercel serverless functions)
+if (require.main === module) {
+  app.listen(PORT, HOST, () => {
+    console.log(`GiftVault server listening at http://${HOST}:${PORT}`);
+  });
+}
+
+module.exports = app;
