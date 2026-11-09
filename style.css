@@ -1363,6 +1363,13 @@ button:active:not(:disabled) {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
 }
 
+.bento-cell svg.brand-hero-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .bento-large {
   grid-row: 1 / span 2;
 }
@@ -1371,6 +1378,151 @@ button:active:not(:disabled) {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+}
+
+/* =====================================================================
+   DEALS & PROMOTIONS STRIP (Compact high-converting member perks)
+   ===================================================================== */
+.deals-promo-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(20, 24, 33, 0.9) 0%, rgba(13, 16, 23, 0.96) 100%);
+  border: 1px solid rgba(34, 205, 177, 0.22);
+  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.5), 0 0 30px -10px rgba(34, 205, 177, 0.12);
+  border-radius: 20px;
+  padding: 24px 32px;
+  margin-bottom: 54px;
+  position: relative;
+  overflow: hidden;
+  gap: 32px;
+}
+
+.deals-promo-section::before {
+  content: "";
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 250px;
+  height: 250px;
+  background: radial-gradient(circle, rgba(34, 205, 177, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+  filter: blur(30px);
+}
+
+.deals-left {
+  flex: 1;
+  min-width: 280px;
+}
+
+.deal-discount-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(34, 205, 177, 0.12);
+  border: 1px solid rgba(34, 205, 177, 0.35);
+  color: var(--accent);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.deals-title {
+  font-size: clamp(20px, 2.4vw, 24px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.deals-desc {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 500px;
+  margin: 0;
+}
+
+.deals-items-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.deal-mini-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  min-width: 220px;
+}
+
+.deal-mini-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(34, 205, 177, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -6px rgba(0, 0, 0, 0.4);
+}
+
+.deal-mini-img {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  max-width: 52px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.deal-mini-img svg,
+.deal-mini-img svg.brand-hero-art {
+  width: 52px !important;
+  height: 52px !important;
+  max-width: 52px !important;
+  max-height: 52px !important;
+  display: block !important;
+  object-fit: cover !important;
+}
+
+.deal-mini-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.deal-mini-info b {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.deal-price-strike {
+  text-decoration: line-through;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-right: 6px;
+}
+
+.deal-price-now {
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 13px;
 }
 
 /* Category Filter Bar */
@@ -2575,18 +2727,250 @@ input:focus {
   }
   .nav-container {
     padding: 10px 16px;
+    gap: 10px;
   }
   .main-content {
-    padding: 16px 16px 110px;
+    padding: 14px 14px 110px;
+  }
+  .hero-section {
+    padding: 20px 0 32px;
+  }
+  .hero-headline {
+    font-size: clamp(28px, 7.5vw, 42px);
+    margin-bottom: 12px;
+  }
+  .hero-description {
+    font-size: 14.5px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+  }
+  .hero-search-bar {
+    max-width: 100%;
+    margin-bottom: 16px;
+  }
+  .hero-search-bar input {
+    font-size: 16px; /* Prevents auto-zoom in Safari iOS */
+  }
+  .categories-filter-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+    scrollbar-width: none;
+  }
+  .categories-filter-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .cat-tab-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+  .carousel-track {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: 14px;
+  }
+  .carousel-card {
+    scroll-snap-align: start;
+    flex: 0 0 240px;
+  }
+  .deals-promo-section {
+    flex-direction: column;
+    padding: 24px 20px;
+    gap: 20px;
+  }
+  .deals-items-row {
+    flex-direction: column;
+    width: 100%;
+  }
+  .deal-mini-card {
+    width: 100%;
   }
   .footer-top {
     grid-template-columns: 1fr;
+    gap: 24px;
   }
   .footer-bottom {
-    margin-bottom: 70px;
+    margin-bottom: 76px;
   }
   .buybar {
     bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Dedicated Smartphone Experience (iPhone, Galaxy, Pixel <= 540px) */
+@media (max-width: 540px) {
+  html, body {
+    overflow-x: hidden;
+  }
+  .nav-container {
+    padding: 8px 12px;
+  }
+  .brand-name {
+    font-size: 16px;
+  }
+  .brand-badge {
+    width: 32px;
+    height: 32px;
+  }
+  .wallet-pill {
+    padding: 5px 8px;
+    gap: 6px;
+  }
+  .wallet-label {
+    display: none;
+  }
+  .wallet-val {
+    font-size: 13px;
+  }
+  .hero-section {
+    padding: 14px 0 24px;
+  }
+  .hero-headline {
+    font-size: clamp(25px, 7vw, 34px);
+    line-height: 1.15;
+  }
+  .hero-visual {
+    height: 270px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+  .floating-stack {
+    max-width: 300px;
+    height: 270px;
+    transform: scale(0.82);
+    transform-origin: center top;
+  }
+  .f-card-1 {
+    width: 220px;
+    top: 5px;
+    left: 5px;
+  }
+  .f-card-2 {
+    width: 210px;
+    bottom: 5px;
+    right: 5px;
+  }
+  .f-card-3 {
+    width: 180px;
+    top: 65px;
+    left: 60px;
+  }
+  /* 2-Column High-Density Mobile E-Commerce Product Grid */
+  .product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .product-tile {
+    border-radius: 14px;
+  }
+  .product-artwork {
+    height: 125px;
+  }
+  .product-info {
+    padding: 10px 10px 12px;
+  }
+  .product-category-row {
+    margin-bottom: 4px;
+  }
+  .product-cat-name {
+    font-size: 10.5px;
+  }
+  .product-rating {
+    font-size: 11px;
+  }
+  .product-name {
+    font-size: 13px;
+    line-height: 1.3;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    height: 34px;
+  }
+  .product-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .price-from-label {
+    display: none;
+  }
+  .price-val {
+    font-size: 15px;
+  }
+  .product-btn-buy {
+    width: 100%;
+    padding: 6px 0;
+    text-align: center;
+    font-size: 12px;
+    border-radius: 8px;
+  }
+  .featured-spotlight-section {
+    padding: 20px 16px;
+    margin: 28px 0;
+    border-radius: 18px;
+  }
+  .spotlight-title {
+    font-size: 21px;
+  }
+  .spotlight-desc {
+    font-size: 13.5px;
+    margin-bottom: 16px;
+  }
+  .spotlight-pricing-row {
+    margin-bottom: 18px;
+    gap: 12px;
+  }
+  .spotlight-new-price {
+    font-size: 26px;
+  }
+  .trust-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .trust-card {
+    padding: 16px;
+  }
+  /* Floating Mobile Bottom Navigation Dock */
+  .mobile-bottom-bar {
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    left: 8px;
+    right: 8px;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+    border-radius: 16px;
+  }
+  .mob-nav-btn {
+    font-size: 10px;
+    padding: 4px;
+  }
+  .mob-nav-btn svg {
+    width: 19px;
+    height: 19px;
+  }
+  /* Modals on Phones */
+  .modal-box, .m, .auth-box {
+    width: calc(100% - 16px) !important;
+    max-width: 440px !important;
+    max-height: 92vh !important;
+    padding: 20px 16px !important;
+    border-radius: 20px !important;
+    overflow-y: auto !important;
+  }
+  input, select, textarea {
+    font-size: 16px !important; /* Prevents auto-zoom on iOS */
+  }
+  .pgrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .quick-amount-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
   }
 }
 
