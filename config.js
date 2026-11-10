@@ -1,1 +1,1 @@
-window.GV_CONFIG = {"SUPABASE_URL":"https://ruiqopolqxrarjexddsl.supabase.co","SUPABASE_ANON_KEY":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1aXFvcG9scXhyYXJqZXhkZHNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjE5MDUsImV4cCI6MjEwOTYzNzkwNX0.6JexMLCpUlsk5ozOHMZiAerztVM67xk0DtEuzEb9DOE"};
+window.GV_CONFIG = {"SUPABASE_URL":"https://xrfehvxqchskxcjytkvv.supabase.co","SUPABASE_ANON_KEY":""};
