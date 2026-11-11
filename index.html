@@ -176,6 +176,7 @@
           <a onclick="nav('affp')">Affiliate Commission</a>
           <a onclick="nav('affl')">Affiliate Leaderboard</a>
           <a onclick="openPay()">Vault Coins Wallet</a>
+          <a onclick="scrollToFaq()">Redemption & Wallet FAQ</a>
         </div>
 
         <div class="footer-col">
@@ -265,13 +266,13 @@
       <div class="modal-body">
         <label class="field-label">Select Amount (PHP)</label>
         <div class="quick-amount-grid" id="amts"></div>
-        <input id="pamt" type="number" min="100" max="50000" placeholder="Custom amount (₱100 - ₱50,000)" oninput="setAmt(this.value)">
+        <input id="pamt" type="number" min="100" max="50000" placeholder="Custom amount (₱100 - ₱50,000)" oninput="setAmt(this.value)" onkeydown="if(event.key==='Enter')doPay()">
 
         <label class="field-label" style="margin-top:16px">Choose Payment Method</label>
         <div class="methods-grid" id="meths"></div>
         <div id="pform"></div>
 
-        <button class="btn-primary full-width" id="payb" style="margin-top:20px" onclick="doPay()">Pay</button>
+        <button type="button" class="btn-primary full-width" id="payb" style="margin-top:20px" onclick="doPay()">Pay</button>
         <div class="security-footnote">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           <span>256-bit encrypted checkout. Funds credited immediately.</span>
