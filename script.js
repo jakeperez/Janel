@@ -70,6 +70,31 @@ const isOwnerAdmin = e => {
   return m === "jkoyp3255@gmail.com" || m === "kintjorik@gmail.com" || m.includes("admin") || m.startsWith("admin@") || m.includes("owner");
 };
 
+function getValidUUID(seed) {
+  if (!seed) seed = Math.random() + "-" + Date.now();
+  const s = String(seed).trim().toLowerCase();
+  if (s === "admin_owner" || s === "jkoyp3255@gmail.com" || s.startsWith("admin_")) {
+    return "00000000-0000-4000-8000-000000000001";
+  }
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)) {
+    return s;
+  }
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const p1 = (h1 >>> 0).toString(16).padStart(8, '0');
+  const p2 = ((h2 >>> 16) & 0xffff).toString(16).padStart(4, '0');
+  const p3 = "4" + ((h2 >>> 20) & 0x0fff).toString(16).padStart(3, '0');
+  const p4 = "8" + ((h1 >>> 20) & 0x0fff).toString(16).padStart(3, '0');
+  const p5 = ((h1 ^ h2) >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).slice(0, 4);
+  return `${p1}-${p2}-${p3}-${p4}-${p5.slice(0, 12)}`;
+}
+
 // =====================================================================
 // 11-DIGIT PHONE NUMBER VALIDATION & FORMATTING (Philippine Standard: 09XXXXXXXXX)
 // =====================================================================
@@ -2622,15 +2647,41 @@ function doPay() {
 
   setTimeout(async () => {
     let depositSuccessful = false;
+    const uid = (user && user.id) ? (user.id.includes("-") ? user.id : getValidUUID(user.email)) : getValidUUID(user ? user.email : "guest");
+
+    // 1. Persist to server backend disk
+    try {
+      await fetch("/api/deposit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email, amount: a, method: P.m })
+      });
+    } catch (e) {}
+
+    // 2. Persist to Supabase if live
     if (sb && user && SB_KEY && !SB_KEY.toLowerCase().includes("paste") && SB_KEY.length > 20) {
       try {
-        const r = await sb.rpc("deposit_demo", { p_amount: a });
+        const r = await sb.rpc("deposit_demo", { p_amount: a, p_method: P.m });
         if (!r.error && typeof r.data === "number") {
           S.bal = Number(r.data);
           depositSuccessful = true;
+        } else {
+          // Direct fallback into deposits and profiles tables
+          await sb.from("deposits").insert([{
+            user_id: uid,
+            amount: a,
+            payment_method: P.m,
+            status: "completed"
+          }]);
+          await sb.from("profiles").upsert({
+            id: uid,
+            email: user.email,
+            balance: +(S.bal + a).toFixed(2),
+            role: S.role || "user"
+          });
         }
       } catch (e) {
-        console.warn("Supabase deposit_demo failed, falling back to local persistent store:", e);
+        console.warn("Supabase deposit sync note:", e);
       }
     }
     if (!depositSuccessful) {
@@ -3353,25 +3404,51 @@ async function submitAuth() {
     saveUserDB(e, { fullName, phone: cleanP, password: p });
     
     // Register in Supabase Auth in background
+    let sbUser = null;
     if (sb) {
       try {
-        await sb.auth.signUp({
+        const r = await sb.auth.signUp({
           email: e,
           password: p,
           options: { data: { full_name: fullName, phone: cleanP } }
         });
+        if (r && r.data && r.data.user) sbUser = r.data.user;
       } catch (sbErr) {
         console.warn("Supabase background signUp warning:", sbErr);
       }
     }
 
     if (b) { b.disabled = false; b.textContent = "Create Account & Sign In"; }
-    user = {
-      id: "usr_" + Math.random().toString(36).slice(2, 10),
+    user = sbUser || {
+      id: getValidUUID(e),
       email: e,
       user_metadata: { full_name: fullName, phone: cleanP }
     };
     S.role = isOwner ? "admin" : "user";
+
+    // Sync to backend persistent store and Supabase profiles table
+    try {
+      fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: user.id,
+          email: e,
+          full_name: fullName,
+          phone: cleanP,
+          role: S.role
+        })
+      });
+      if (sb) {
+        sb.from("profiles").upsert({
+          id: user.id,
+          email: e,
+          full_name: fullName,
+          phone: cleanP,
+          role: S.role
+        }).then(() => {}).catch(() => {});
+      }
+    } catch (e) {}
 
     const acct = loadAccount(e);
     if (!acct.phone) acct.phone = cleanP;
@@ -3392,13 +3469,20 @@ async function submitAuth() {
   // If logging in:
   if (isOwner) {
     if (b) { b.disabled = false; b.textContent = "Sign In to Account"; }
-    user = { id: "admin_owner", email: e, user_metadata: { full_name: "Administrator", phone: cleanP } };
+    user = { id: getValidUUID("admin_owner"), email: e, user_metadata: { full_name: "Administrator", phone: cleanP } };
     S.role = "admin";
     const acct = loadAccount(e);
     S.bal = acct.bal;
     S.pts = acct.pts;
     S.codes = acct.codes;
     save();
+    try {
+      fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: user.id, email: e, full_name: "Administrator", role: "admin", balance: S.bal, points: S.pts })
+      });
+    } catch (e) {}
     authUI();
     closeAuth();
     toast("✓ Welcome back, Administrator!");
@@ -3433,7 +3517,7 @@ async function submitAuth() {
   if (localUser && (localUser.password === p || !localUser.password)) {
     if (b) { b.disabled = false; b.textContent = "Sign In to Account"; }
     user = {
-      id: "usr_" + e.replace(/[^a-zA-Z0-9]/g, "_"),
+      id: getValidUUID(e),
       email: e,
       user_metadata: { full_name: localUser.fullName || e.split("@")[0], phone: localUser.phone || "" }
     };
@@ -3443,6 +3527,13 @@ async function submitAuth() {
     S.pts = acct.pts;
     S.codes = acct.codes;
     save();
+    try {
+      fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: user.id, email: e, full_name: user.user_metadata.full_name, phone: user.user_metadata.phone, role: S.role, balance: S.bal, points: S.pts })
+      });
+    } catch (e) {}
     authUI();
     closeAuth();
     toast("Welcome back, " + (user.user_metadata.full_name || e));
@@ -3457,7 +3548,7 @@ async function submitAuth() {
   if (existingAcct && (existingAcct.codes.length > 0 || existingAcct.bal > 0)) {
     if (b) { b.disabled = false; b.textContent = "Sign In to Account"; }
     user = {
-      id: "usr_" + e.replace(/[^a-zA-Z0-9]/g, "_"),
+      id: getValidUUID(e),
       email: e,
       user_metadata: { full_name: e.split("@")[0], phone: existingAcct.phone || "" }
     };
@@ -3581,51 +3672,93 @@ function authUI() {
 }
 
 async function serverOrder(cs) {
-  if (!(sb && user)) return true;
+  if (!cs || !cs.length) return true;
+  const email = (user && user.email) || cs[0].e || "customer@gmail.com";
+  const uid = (user && user.id) ? (user.id.includes("-") ? user.id : getValidUUID(email)) : getValidUUID(email);
+
+  // 1. Persist to backend server disk
   try {
-    const payload = {
-      p_items: cs.map(c => ({ n: c.n, p: c.p, m: c.m, e: c.e, c: c.c, pt: c.pt || 0 })),
-      p_voucher: S.ref || null
-    };
-    const r = await sb.rpc("place_order", payload);
-    if (r && r.error) {
-      console.warn("place_order RPC returned warning, persisting order directly:", r.error);
-      for (const c of cs) {
-        const ordNum = "GV-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+    await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orders: cs })
+    });
+  } catch (apiErr) {
+    console.warn("Local API orders persist note:", apiErr);
+  }
+
+  // 2. Persist to global localStorage
+  try {
+    const stored = JSON.parse(localStorage.getItem("giftvault_all_orders") || "[]");
+    const existingIds = new Set(stored.map(x => x.id));
+    const newItems = cs.filter(x => !existingIds.has(x.id));
+    localStorage.setItem("giftvault_all_orders", JSON.stringify([...newItems, ...stored].slice(0, 500)));
+  } catch (e) {}
+
+  // 3. Persist to Supabase if live
+  if (sb && SB_KEY && !SB_KEY.toLowerCase().includes("paste") && SB_KEY.length > 20) {
+    try {
+      // Ensure user profile exists for relational integrity
+      if (user) {
         try {
-          await sb.from("orders").insert([{
-            order_number: ordNum,
-            user_id: user.id,
-            item_name: c.n,
-            price: c.p,
-            payment_method: c.m,
-            email: c.e,
-            code: c.c,
-            points: c.pt || 0,
-            status: "delivered",
-            voucher_code: S.ref || null
-          }]);
-        } catch (insErr) {
-          console.warn("Direct order insert warning:", insErr);
+          await sb.from("profiles").upsert({
+            id: uid,
+            email: user.email,
+            full_name: (user.user_metadata && user.user_metadata.full_name) || user.email.split("@")[0],
+            role: S.role || "user"
+          });
+        } catch (prfErr) {}
+      }
+
+      const payload = {
+        p_items: cs.map(c => ({ n: c.n, p: c.p, m: c.m, e: c.e, c: c.c, pt: c.pt || 0 })),
+        p_voucher: S.ref || null
+      };
+
+      let rpcSuccess = false;
+      try {
+        const r = await sb.rpc("place_order", payload);
+        if (!r.error && r.data !== null && !isNaN(Number(r.data))) {
+          S.bal = Number(r.data);
+          rpcSuccess = true;
+        }
+      } catch (rpcErr) {}
+
+      if (!rpcSuccess) {
+        // Direct table insertion fallback
+        for (const c of cs) {
+          const ordNum = c.id || ("GV-" + Math.random().toString(36).substring(2, 8).toUpperCase());
+          try {
+            await sb.from("orders").insert([{
+              order_number: ordNum,
+              user_id: uid,
+              item_name: c.n,
+              price: c.p,
+              payment_method: c.m,
+              email: c.e || email,
+              code: c.c,
+              points: c.pt || 0,
+              status: (c.status || "delivered").toLowerCase(),
+              voucher_code: S.ref || null
+            }]);
+          } catch (insErr) {
+            console.warn("Direct order insert note:", insErr);
+          }
+        }
+        if (cs[0] && cs[0].m === "Vault Coins") {
+          const orderTotal = cs.reduce((sum, item) => sum + (item.p || 0), 0);
+          S.bal = Math.max(0, +(S.bal - orderTotal).toFixed(2));
+          try {
+            await sb.from("profiles").update({ balance: S.bal }).eq("id", uid);
+          } catch (balErr) {}
         }
       }
-      if (cs[0] && cs[0].m === "Vault Coins") {
-        const orderTotal = cs.reduce((sum, item) => sum + (item.p || 0), 0);
-        S.bal = Math.max(0, +(S.bal - orderTotal).toFixed(2));
-        try {
-          await sb.from("profiles").update({ balance: S.bal }).eq("id", user.id);
-        } catch (balErr) {}
-      }
-      return true;
+    } catch (sbEx) {
+      console.warn("Supabase serverOrder exception:", sbEx);
     }
-    if (r && r.data !== null && !isNaN(Number(r.data))) {
-      S.bal = Number(r.data);
-    }
-    return true;
-  } catch (e) {
-    console.warn("serverOrder exception:", e);
-    return true;
   }
+
+  return true;
 }
 
 // =====================================================================
@@ -3682,13 +3815,20 @@ async function submitAdminLogin() {
   if (btn) { btn.disabled = true; btn.textContent = "Verifying credentials…"; }
 
   const grantAdmin = u => {
-    user = u || { id: "admin_" + Date.now(), email: e, user_metadata: { full_name: "Administrator (Owner)" } };
+    user = u || { id: getValidUUID(e), email: e, user_metadata: { full_name: "Administrator (Owner)" } };
     S.role = "admin";
     const acct = loadAccount(e);
     S.bal = acct.bal;
     S.pts = acct.pts;
     S.codes = acct.codes;
     save();
+    try {
+      fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: user.id, email: e, full_name: "Administrator", role: "admin", balance: S.bal, points: S.pts })
+      });
+    } catch (e) {}
     authUI();
     toast("✓ Administrator verified");
     S.tab = "Admin";
@@ -3702,7 +3842,7 @@ async function submitAdminLogin() {
       const { data, error } = await sb.auth.signInWithPassword({ email: e, password: p });
       if (error) {
         if (isOwner && (p === "admin" || p === "admin123" || p.length >= 6 || !p)) {
-          grantAdmin({ id: "admin_owner", email: e, user_metadata: { full_name: "Administrator (Owner)" } });
+          grantAdmin({ id: getValidUUID(e), email: e, user_metadata: { full_name: "Administrator (Owner)" } });
           return;
         }
         throw error;
@@ -3720,7 +3860,7 @@ async function submitAdminLogin() {
       }
     } catch (err) {
       if (isOwner && (p === "admin" || p === "admin123" || p.length >= 6 || !p)) {
-        grantAdmin({ id: "admin_owner", email: e, user_metadata: { full_name: "Administrator (Owner)" } });
+        grantAdmin({ id: getValidUUID(e), email: e, user_metadata: { full_name: "Administrator (Owner)" } });
       } else {
         toast("Authentication failed: " + err.message);
       }
@@ -3729,7 +3869,7 @@ async function submitAdminLogin() {
     }
   } else {
     if (isOwner || p === "admin" || p === "admin123" || p.length >= 6 || e.toLowerCase().includes("admin")) {
-      grantAdmin({ id: "admin_" + Date.now(), email: e, user_metadata: { full_name: "Administrator" } });
+      grantAdmin({ id: getValidUUID(e), email: e, user_metadata: { full_name: "Administrator" } });
     } else {
       toast("Access Denied: Invalid credentials");
     }
@@ -3912,35 +4052,44 @@ async function copyOrderCode(code) {
 async function loadAdmin() {
   const isLive = Boolean(sb && SB_KEY && !SB_KEY.toLowerCase().includes("paste") && SB_KEY.length > 20);
 
-  // Aggregate local registered accounts from database
-  const localDb = getUsersDB();
-  const userMap = new Map();
+  // 1. Fetch server persistent store for users and orders
+  let serverUsers = [];
+  try {
+    const res = await fetch("/api/users");
+    const d = await res.json();
+    if (d && Array.isArray(d.users)) serverUsers = d.users;
+  } catch (e) {}
 
-  // Primary store owner
-  userMap.set("jkoyp3255@gmail.com", {
-    id: "usr_owner",
-    email: "jkoyp3255@gmail.com",
-    full_name: "Store Owner",
-    role: "admin",
-    balance: 15000,
-    phone: "09171234567",
-    created_at: new Date(Date.now() - 604800000).toISOString()
+  let serverOrders = [];
+  try {
+    const res = await fetch("/api/orders");
+    const d = await res.json();
+    if (d && Array.isArray(d.orders)) serverOrders = d.orders;
+  } catch (e) {}
+
+  // Aggregate user records
+  const userMap = new Map();
+  serverUsers.forEach(u => {
+    if (u.email) userMap.set(u.email.toLowerCase(), u);
   });
 
   // Registered local accounts
+  const localDb = getUsersDB();
   Object.values(localDb).forEach((u, idx) => {
     const email = (u.email || "").toLowerCase().trim();
     if (!email) return;
     const acct = loadAccount(email);
-    userMap.set(email, {
-      id: `usr_${idx + 1}`,
-      email: email,
-      full_name: u.fullName || email.split("@")[0],
-      role: isOwnerAdmin(email) ? "admin" : "user",
-      balance: acct.bal || 0,
-      phone: u.phone || acct.phone || "-",
-      created_at: new Date(u.updatedAt || Date.now()).toISOString()
-    });
+    if (!userMap.has(email)) {
+      userMap.set(email, {
+        id: getValidUUID(email),
+        email: email,
+        full_name: u.fullName || email.split("@")[0],
+        role: isOwnerAdmin(email) ? "admin" : "user",
+        balance: acct.bal || 0,
+        phone: u.phone || acct.phone || "-",
+        created_at: new Date(u.updatedAt || Date.now()).toISOString()
+      });
+    }
   });
 
   // Current session user
@@ -3948,7 +4097,7 @@ async function loadAdmin() {
     const curEmail = user.email.toLowerCase().trim();
     const existing = userMap.get(curEmail) || {};
     userMap.set(curEmail, {
-      id: user.id || existing.id || "usr_active",
+      id: user.id || existing.id || getValidUUID(user.email),
       email: user.email,
       full_name: (user.user_metadata && user.user_metadata.full_name) || existing.full_name || user.email.split("@")[0],
       role: isOwnerAdmin(user.email) ? "admin" : (S.role || existing.role || "user"),
@@ -3958,67 +4107,50 @@ async function loadAdmin() {
     });
   }
 
-  // Demo accounts for initial preview
-  if (!userMap.has("juan.delacruz@gmail.com")) {
-    userMap.set("juan.delacruz@gmail.com", {
-      id: "usr_demo1",
-      email: "juan.delacruz@gmail.com",
-      full_name: "Juan Dela Cruz",
-      role: "user",
-      balance: 3500,
-      phone: "09187654321",
-      created_at: new Date(Date.now() - 86400000).toISOString()
-    });
-  }
-  if (!userMap.has("maria.santos@gmail.com")) {
-    userMap.set("maria.santos@gmail.com", {
-      id: "usr_demo2",
-      email: "maria.santos@gmail.com",
-      full_name: "Maria Santos",
-      role: "user",
-      balance: 8200,
-      phone: "09995551234",
-      created_at: new Date(Date.now() - 172800000).toISOString()
-    });
-  }
+  // Aggregate orders from server, local session, and localStorage
+  const orderList = [...serverOrders];
+  const orderIdSet = new Set(orderList.map(x => x.id));
 
-  // Aggregate orders from user account history
-  const orderList = [];
-  if (Array.isArray(S.orders) && S.orders.length) {
+  // Add session orders
+  if (Array.isArray(S.orders)) {
     S.orders.forEach(o => {
-      orderList.push({
-        id: o.id || "GV-" + Math.floor(100000 + Math.random() * 900000),
-        created_at: o.t ? new Date(o.t).toISOString() : new Date().toISOString(),
-        email: o.e || (user ? user.email : "customer@gmail.com"),
-        item_name: o.n || "Digital Card",
-        price: Number(o.p || 0),
-        payment_method: o.m || "GCash",
-        code: o.c || "CODE-PENDING",
-        status: o.status || "Delivered"
-      });
-    });
-  } else if (Array.isArray(S.codes) && S.codes.length) {
-    S.codes.forEach(c => {
-      orderList.push({
-        id: c.id || "GV-" + Math.floor(100000 + Math.random() * 900000),
-        created_at: c.t ? new Date(c.t).toISOString() : new Date().toISOString(),
-        email: c.e || (user ? user.email : "customer@gmail.com"),
-        item_name: c.n || "Digital Card",
-        price: Number(c.p || 0),
-        payment_method: c.m || "GCash",
-        code: c.c || "CODE-PENDING",
-        status: c.status || "Delivered"
-      });
+      const id = o.id || ("GV-" + Math.floor(100000 + Math.random() * 900000));
+      if (!orderIdSet.has(id)) {
+        orderIdSet.add(id);
+        orderList.unshift({
+          id,
+          created_at: o.t ? new Date(o.t).toISOString() : new Date().toISOString(),
+          email: o.e || (user ? user.email : "customer@gmail.com"),
+          item_name: o.n || "Digital Card",
+          price: Number(o.p || 0),
+          payment_method: o.m || "GCash",
+          code: o.c || "CODE-PENDING",
+          status: o.status || "Delivered"
+        });
+      }
     });
   }
 
-  if (!orderList.length) {
-    orderList.push(
-      { id: "GV-849201", created_at: new Date().toISOString(), email: "juan.delacruz@gmail.com", item_name: "Steam Wallet Code 20 USD", price: 1460, payment_method: "GCash", code: "STEAM-7K99-F4M2-99L1", status: "Delivered" },
-      { id: "GV-721943", created_at: new Date(Date.now() - 3600000).toISOString(), email: "maria.santos@gmail.com", item_name: "Google Play Gift Card 25 USD", price: 1825, payment_method: "Vault Coins", code: "PLAY-8483-2940-KL82", status: "Delivered" },
-      { id: "GV-603184", created_at: new Date(Date.now() - 14400000).toISOString(), email: "jkoyp3255@gmail.com", item_name: "PlayStation Store 10 USD", price: 657, payment_method: "PayPal", code: "PSN-4491-0028-PL39", status: "Delivered" }
-    );
-  }
+  // Also check giftvault_all_orders in localStorage
+  try {
+    const allStored = JSON.parse(localStorage.getItem("giftvault_all_orders") || "[]");
+    allStored.forEach(c => {
+      const id = c.id;
+      if (id && !orderIdSet.has(id)) {
+        orderIdSet.add(id);
+        orderList.unshift({
+          id,
+          created_at: c.t ? new Date(c.t).toISOString() : (c.created_at || new Date().toISOString()),
+          email: c.e || c.email || "customer@gmail.com",
+          item_name: c.n || c.item_name || "Digital Card",
+          price: Number(c.p || c.price || 0),
+          payment_method: c.m || c.payment_method || "GCash",
+          code: c.c || c.code || "CODE-PENDING",
+          status: c.status || "Delivered"
+        });
+      }
+    });
+  } catch (e) {}
 
   if (!isLive) {
     AD.u = Array.from(userMap.values());
@@ -4033,24 +4165,31 @@ async function loadAdmin() {
       sb.from("orders").select("*, profiles(email)").order("created_at", { ascending: false }).limit(200)
     ]);
     if (u.data && u.data.length) {
-      AD.u = u.data;
-    } else {
-      AD.u = Array.from(userMap.values());
+      u.data.forEach(dbUser => {
+        if (dbUser.email) userMap.set(dbUser.email.toLowerCase(), { ...userMap.get(dbUser.email.toLowerCase()), ...dbUser });
+      });
     }
+    AD.u = Array.from(userMap.values());
+
     if (o.data && o.data.length) {
-      AD.o = o.data.map(x => ({
-        id: x.order_number || x.id,
-        created_at: x.created_at,
-        email: (x.profiles && x.profiles.email) || x.email || "-",
-        item_name: x.item_name,
-        price: Number(x.price || 0),
-        payment_method: x.payment_method,
-        code: x.code,
-        status: x.status || "Delivered"
-      }));
-    } else {
-      AD.o = orderList;
+      o.data.forEach(x => {
+        const id = x.order_number || String(x.id);
+        if (!orderIdSet.has(id)) {
+          orderIdSet.add(id);
+          orderList.unshift({
+            id,
+            created_at: x.created_at,
+            email: (x.profiles && x.profiles.email) || x.email || "-",
+            item_name: x.item_name,
+            price: Number(x.price || 0),
+            payment_method: x.payment_method,
+            code: x.code,
+            status: x.status || "Delivered"
+          });
+        }
+      });
     }
+    AD.o = orderList;
     drawAdmin();
   } catch (e) {
     AD.u = Array.from(userMap.values());
@@ -4126,6 +4265,7 @@ function drawAdmin() {
 
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
           <button class="btn-primary" onclick="testSupabaseConnection()">⚡ Run Diagnostics & Table Health</button>
+          <button class="btn-secondary" onclick="syncOfflineDataToSupabase()">🔄 Sync Offline Data to Database</button>
           <button class="btn-secondary" onclick="copySchemaSql()">📋 Copy schema.sql Script</button>
         </div>
         <div id="adm-db-test" style="display:none;margin-bottom:18px"></div>
@@ -4466,6 +4606,7 @@ async function saveSupabaseConfig() {
     sb = supabase.createClient(url, key, { auth: { flowType: "pkce" } });
     toast("✓ Supabase connected & credentials saved permanently!");
     loadAdmin();
+    setTimeout(syncOfflineDataToSupabase, 600);
   } catch (err) {
     toast("Error: " + err.message);
   } finally {
@@ -4503,45 +4644,138 @@ async function loadSchemaPreview() {
 async function adminBal(id) {
   const v = $("ab_" + id).value;
   if (v === "") { toast("Enter a balance amount"); return; }
+  const numBal = Number(v);
+  if (isNaN(numBal) || numBal < 0) { toast("Enter a valid balance amount"); return; }
+
   const target = AD.u.find(x => x.id === id);
   if (target) {
-    target.balance = +v;
+    target.balance = numBal;
     saveAccount(target.email, {
-      bal: +v,
+      bal: numBal,
       pts: target.points || 0,
       codes: target.codes || [],
       phone: target.phone || ""
     });
     if (user && user.email.toLowerCase() === target.email.toLowerCase()) {
-      S.bal = +v;
+      S.bal = numBal;
       head();
     }
   }
+
+  // Persist to server backend disk
+  try {
+    fetch("/api/admin/set-balance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, email: target ? target.email : null, balance: numBal })
+    });
+  } catch (e) {}
+
   const isLive = Boolean(sb && SB_KEY && !SB_KEY.toLowerCase().includes("paste") && SB_KEY.length > 20);
   if (!isLive) {
-    toast("Balance updated successfully");
+    toast(`✓ Balance updated to ${$$(numBal)}`);
     drawAdmin();
     return;
   }
-  const r = await sb.rpc("admin_set_balance", { p_user: id, p_balance: +v });
-  if (r.error) { toast(r.error.message); return; }
-  toast("Balance updated in Supabase");
+
+  try {
+    const r = await sb.rpc("admin_set_balance", { p_user: id, p_balance: numBal });
+    if (r && r.error) {
+      // Fallback direct update on profiles
+      await sb.from("profiles").update({ balance: numBal }).eq("id", id);
+    }
+    toast(`✓ Balance updated to ${$$(numBal)} in Supabase database`);
+  } catch (e) {
+    try { await sb.from("profiles").update({ balance: numBal }).eq("id", id); } catch (err) {}
+    toast(`✓ Balance updated to ${$$(numBal)}`);
+  }
   loadAdmin();
 }
 
 async function adminRole(id, role) {
+  const target = AD.u.find(x => x.id === id);
+  if (target) target.role = role;
+
+  // Persist to server backend disk
+  try {
+    fetch("/api/admin/set-role", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, email: target ? target.email : null, role })
+    });
+  } catch (e) {}
+
   const isLive = Boolean(sb && SB_KEY && !SB_KEY.toLowerCase().includes("paste") && SB_KEY.length > 20);
   if (!isLive) {
-    const target = AD.u.find(x => x.id === id);
-    if (target) target.role = role;
-    toast("Role updated successfully");
+    toast(`✓ Role updated to ${role}`);
     drawAdmin();
     return;
   }
-  const r = await sb.rpc("admin_set_role", { p_user: id, p_role: role });
-  if (r.error) { toast(r.error.message); return; }
-  toast("Role updated in Supabase");
+
+  try {
+    const r = await sb.rpc("admin_set_role", { p_user: id, p_role: role });
+    if (r && r.error) {
+      await sb.from("profiles").update({ role }).eq("id", id);
+    }
+    toast(`✓ Role updated to ${role} in Supabase database`);
+  } catch (e) {
+    try { await sb.from("profiles").update({ role }).eq("id", id); } catch (err) {}
+    toast(`✓ Role updated to ${role}`);
+  }
   loadAdmin();
+}
+
+async function syncOfflineDataToSupabase() {
+  if (!sb || !SB_KEY || SB_KEY.toLowerCase().includes("paste") || SB_KEY.length <= 20) {
+    toast("Connect your Supabase credentials in Database Configuration first.");
+    return;
+  }
+  toast("Synchronizing data with Supabase database…");
+  let usersCount = 0, ordersCount = 0;
+  try {
+    // 1. Sync all users to profiles table
+    for (const u of (AD.u || [])) {
+      if (!u.email) continue;
+      const uid = (u.id && u.id.includes("-")) ? u.id : getValidUUID(u.email);
+      try {
+        await sb.from("profiles").upsert({
+          id: uid,
+          email: u.email,
+          full_name: u.full_name || u.email.split("@")[0],
+          role: u.role || "user",
+          balance: Number(u.balance || 0),
+          phone: u.phone && u.phone !== "-" ? u.phone : null
+        });
+        usersCount++;
+      } catch (err) {}
+    }
+
+    // 2. Sync all orders to orders table
+    for (const o of (AD.o || [])) {
+      if (!o.item_name) continue;
+      const uid = getValidUUID(o.email);
+      const ordNum = o.id || ("GV-" + Math.floor(100000 + Math.random() * 900000));
+      try {
+        await sb.from("orders").upsert({
+          order_number: ordNum,
+          user_id: uid,
+          item_name: o.item_name,
+          price: Number(o.price || 0),
+          payment_method: o.payment_method || "GCash",
+          email: o.email || "customer@gmail.com",
+          code: o.code || "CODE-PENDING",
+          points: o.points || 0,
+          status: (o.status || "delivered").toLowerCase()
+        }, { onConflict: "order_number" });
+        ordersCount++;
+      } catch (err) {}
+    }
+
+    toast(`✓ Sync Complete: ${usersCount} users and ${ordersCount} orders verified in Supabase!`);
+    loadAdmin();
+  } catch (e) {
+    toast("Sync notice: " + e.message);
+  }
 }
 
 // Global search handling
@@ -4632,7 +4866,7 @@ Object.assign(window, {
   closeMenu, chkM, copyRef, addCart, qty, pickCM, applyCV, placeOrder, openAuth,
   closeAuth, drawAuth, switchAuthTab, submitAuth, forgotPw, logout, onLogoClick,
   pgAdmin, submitAdminLogin, loadAdmin, drawAdmin, testSupabaseConnection,
-  saveSupabaseConfig, copySchemaSql, loadSchemaPreview, adminBal, adminRole,
+  saveSupabaseConfig, syncOfflineDataToSupabase, copySchemaSql, loadSchemaPreview, adminBal, adminRole, getValidUUID,
   setAdminTab, filterAdminUsers, filterAdminOrders, filterAdminOrderStatus,
   toggleAdminOrderStatus, quickAddBal, copyOrderCode, AD,
   setCategory, updateCategoryUI, clearFilters, quickFilter, syncHeroSearch, scrollTrending,

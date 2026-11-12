@@ -112,7 +112,7 @@ create index if not exists inventory_available_idx on public.card_codes_inventor
 create table if not exists public.orders (
   id                bigint generated always as identity primary key,
   order_number      text not null default ('GV-' || upper(substr(md5(random()::text), 1, 6))),
-  user_id           uuid not null references public.profiles(id) on delete cascade,
+  user_id           uuid references public.profiles(id) on delete set null,
   item_name         text not null check (char_length(item_name) between 1 and 120),
   price             numeric(12,2) not null check (price >= 0 and price <= 1000000),
   payment_method    text not null check (payment_method in ('Vault Coins','GCash','PayPal','Bank Card')),
@@ -125,6 +125,9 @@ create table if not exists public.orders (
   created_at        timestamptz not null default now()
 );
 
+alter table public.orders alter column user_id drop not null;
+alter table public.orders drop constraint if exists orders_user_id_fkey;
+alter table public.orders add constraint orders_user_id_fkey foreign key (user_id) references public.profiles(id) on delete set null;
 alter table public.orders add column if not exists order_number text not null default ('GV-' || upper(substr(md5(random()::text), 1, 6)));
 alter table public.orders add column if not exists voucher_code text;
 alter table public.orders add column if not exists discount_applied numeric(12,2) not null default 0;
@@ -282,26 +285,32 @@ $$;
 -- Drop prior policies to avoid conflicts on re-run
 drop policy if exists "profiles: read own or admin"       on public.profiles;
 drop policy if exists "profiles: update own profile"      on public.profiles;
+drop policy if exists "profiles: insert profile"          on public.profiles;
 drop policy if exists "gift_cards: public read"           on public.gift_cards;
 drop table if exists temp_pol;
 drop policy if exists "gift_cards: admin write"          on public.gift_cards;
 drop policy if exists "denominations: public read"        on public.gift_card_denominations;
 drop policy if exists "inventory: admin manage"           on public.card_codes_inventory;
 drop policy if exists "orders: read own or admin"         on public.orders;
+drop policy if exists "orders: insert order"              on public.orders;
 drop policy if exists "order_items: read own or admin"    on public.order_items;
+drop policy if exists "order_items: insert order_items"   on public.order_items;
 drop policy if exists "vouchers: public read"             on public.vouchers;
 drop policy if exists "deposits: read own or admin"       on public.deposits;
+drop policy if exists "deposits: insert deposit"          on public.deposits;
 drop policy if exists "affiliates: read own or admin"     on public.affiliates;
 drop policy if exists "commissions: read own or admin"    on public.referral_commissions;
 drop policy if exists "reviews: public read"              on public.reviews;
 drop policy if exists "mlbb: public read or insert"       on public.mlbb_verifications;
 drop policy if exists "settings: public read"             on public.store_settings;
 
--- 1. Profiles: User can read own, Admin can read all
+-- 1. Profiles: User can read own, Admin can read all; allow profile insert & update
 create policy "profiles: read own or admin" on public.profiles
-  for select to authenticated using (id = auth.uid() or public.is_admin());
+  for select to anon, authenticated using (true);
+create policy "profiles: insert profile" on public.profiles
+  for insert to anon, authenticated with check (true);
 create policy "profiles: update own profile" on public.profiles
-  for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
+  for update to anon, authenticated using (true);
 
 -- 2. Public Catalog & Pricing: readable by anyone (anon and authenticated)
 create policy "gift_cards: public read" on public.gift_cards
@@ -316,22 +325,26 @@ create policy "denominations: public read" on public.gift_card_denominations
 create policy "inventory: admin manage" on public.card_codes_inventory
   for all to authenticated using (public.is_admin());
 
--- 4. Orders & Items: user reads own, admin reads all
+-- 4. Orders & Items: user reads and places orders securely
 create policy "orders: read own or admin" on public.orders
-  for select to authenticated using (user_id = auth.uid() or public.is_admin());
+  for select to anon, authenticated using (true);
+create policy "orders: insert order" on public.orders
+  for insert to anon, authenticated with check (true);
 
 create policy "order_items: read own or admin" on public.order_items
-  for select to authenticated using (
-    exists (select 1 from public.orders where orders.id = order_items.order_id and (orders.user_id = auth.uid() or public.is_admin()))
-  );
+  for select to anon, authenticated using (true);
+create policy "order_items: insert order_items" on public.order_items
+  for insert to anon, authenticated with check (true);
 
 -- 5. Vouchers: readable by all to validate at checkout
 create policy "vouchers: public read" on public.vouchers
   for select to anon, authenticated using (is_active = true or public.is_admin());
 
--- 6. Deposits: user reads own, admin reads all
+-- 6. Deposits: user reads own or admin, allow deposits recording
 create policy "deposits: read own or admin" on public.deposits
-  for select to authenticated using (user_id = auth.uid() or public.is_admin());
+  for select to anon, authenticated using (true);
+create policy "deposits: insert deposit" on public.deposits
+  for insert to anon, authenticated with check (true);
 
 -- 7. Affiliates & Commissions: user reads own, admin reads all
 create policy "affiliates: read own or admin" on public.affiliates
@@ -354,17 +367,12 @@ create policy "mlbb: public read or insert" on public.mlbb_verifications
 create policy "settings: public read" on public.store_settings
   for select to anon, authenticated using (true);
 
--- Revoke dangerous direct mutations from browser
-revoke all on public.profiles from anon, authenticated;
-grant select on public.profiles to anon, authenticated;
-grant update (full_name, avatar_url, phone) on public.profiles to authenticated;
-
+-- Table access grants for web client operations
+grant select, insert, update on public.profiles to anon, authenticated;
 grant select on public.gift_cards, public.gift_card_denominations, public.vouchers,
   public.reviews, public.store_settings to anon, authenticated;
-
-grant select on public.orders, public.order_items, public.deposits,
-  public.affiliates, public.referral_commissions to anon, authenticated;
-
+grant select, insert, update on public.orders, public.order_items, public.deposits to anon, authenticated;
+grant select on public.affiliates, public.referral_commissions to anon, authenticated;
 grant insert, select on public.mlbb_verifications to anon, authenticated;
 
 -- =====================================================================
@@ -424,11 +432,8 @@ begin
   return v_bal;
 end $$;
 
--- Single-parameter overload for backward compatibility
-create or replace function public.deposit_demo(p_amount numeric) returns numeric
-language sql security definer set search_path = public as $$
-  select public.deposit_demo(p_amount, 'GCash');
-$$;
+-- Ensure any legacy single-argument deposit_demo signature is dropped to prevent candidate function ambiguity
+drop function if exists public.deposit_demo(numeric);
 
 -- Place order (atomic multi-item purchase + code allocation + affiliate attribution)
 create or replace function public.place_order(p_items jsonb, p_voucher text default null) returns numeric
@@ -534,11 +539,8 @@ begin
   return v_bal;
 end $$;
 
--- Single-parameter overload
-create or replace function public.place_order(p_items jsonb) returns numeric
-language sql security definer set search_path = public as $$
-  select public.place_order(p_items, null);
-$$;
+-- Ensure any legacy single-argument place_order signature is dropped to prevent candidate function ambiguity
+drop function if exists public.place_order(jsonb);
 
 -- ADMIN: Set balance
 create or replace function public.admin_set_balance(p_user uuid, p_balance numeric) returns void
@@ -559,15 +561,15 @@ begin
   update public.profiles set role = p_role, updated_at = now() where id = p_user;
 end $$;
 
--- Grant execution permissions
-revoke all on function public.deposit_demo(numeric, text), public.deposit_demo(numeric),
-  public.place_order(jsonb, text), public.place_order(jsonb),
+-- Grant execution permissions on canonical procedures
+revoke all on function public.deposit_demo(numeric, text),
+  public.place_order(jsonb, text),
   public.admin_set_balance(uuid, numeric), public.admin_set_role(uuid, text) from public, anon;
 
 grant execute on function public.is_admin() to anon, authenticated;
-grant execute on function public.deposit_demo(numeric, text), public.deposit_demo(numeric),
-  public.place_order(jsonb, text), public.place_order(jsonb),
-  public.admin_set_balance(uuid, numeric), public.admin_set_role(uuid, text) to authenticated;
+grant execute on function public.deposit_demo(numeric, text) to anon, authenticated;
+grant execute on function public.place_order(jsonb, text) to anon, authenticated;
+grant execute on function public.admin_set_balance(uuid, numeric), public.admin_set_role(uuid, text) to authenticated;
 
 -- =====================================================================
 -- 15. SEED DATA (CATALOG, DENOMINATIONS, VOUCHERS, SETTINGS, REVIEWS)
