@@ -6,8 +6,8 @@
 let localSB = null;
 try { localSB = JSON.parse(localStorage.getItem("giftvault_supabase") || "null"); } catch (e) {}
 let CFG = window.GV_CONFIG || {};
-let SB_URL = (localSB && localSB.url) || CFG.SUPABASE_URL || "https://xrfehvxqchskxcjytkvv.supabase.co";
-let SB_KEY = (localSB && localSB.key) || CFG.SUPABASE_ANON_KEY || "";
+let SB_URL = (localSB && localSB.url && !localSB.url.includes("xrfehvxqchskxcjytkvv")) ? localSB.url : (CFG.SUPABASE_URL || "https://ruiqopolqxrarjexddsl.supabase.co");
+let SB_KEY = (localSB && localSB.key && localSB.key.length > 20 && !localSB.key.toLowerCase().includes("paste")) ? localSB.key : (CFG.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1aXFvcG9scXhyYXJqZXhkZHNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjE5MDUsImV4cCI6MjEwOTYzNzkwNX0.6JexMLCpUlsk5ozOHMZiAerztVM67xk0DtEuzEb9DOE");
 
 // Gift Cards catalog:
 // [0: name, 1: wordmark, 2: [color1, color2], 3: amounts (USD), 4: review count, 5: discount %, 6: category]
@@ -62,7 +62,7 @@ let S = { bal: 0, pts: 0, codes: [], orders: [], ref: "", cart: [], tab: "Gifts"
 let codesSubTab = "codes"; // "codes" | "orders"
 let orderStatusFilter = "all"; // "all" | "Delivered" | "Pending" | "Failed"
 let orderSearchQuery = "";
-let GQ = "", PG = {}, user = null, sb = null, P = { amt: 1000, m: "GCash" };
+let GQ = "", PG = {}, user = null, sb = null, P = { amt: 1000, m: "GCash" }, CT = { e: "", vc: "", v: 0, m: "GCash" };
 
 const isOwnerAdmin = e => {
   if (!e) return false;
@@ -270,6 +270,38 @@ window.$$ = $$;
 window.P0 = P0;
 window.esc = esc;
 window.toast = toast;
+
+try {
+  Object.defineProperty(window, "PG", {
+    get() { return PG; },
+    set(v) { PG = v; },
+    configurable: true,
+    enumerable: true
+  });
+  Object.defineProperty(window, "CT", {
+    get() { return CT; },
+    set(v) { CT = v; },
+    configurable: true,
+    enumerable: true
+  });
+  Object.defineProperty(window, "S", {
+    get() { return S; },
+    set(v) { S = v; },
+    configurable: true,
+    enumerable: true
+  });
+  Object.defineProperty(window, "P", {
+    get() { return P; },
+    set(v) { P = v; },
+    configurable: true,
+    enumerable: true
+  });
+} catch (e) {
+  window.PG = PG;
+  window.CT = CT;
+  window.S = S;
+  window.P = P;
+}
 
 // Update Top Navigation Bar Status
 function head() {
@@ -2164,26 +2196,47 @@ function mkItems(i) {
 
 function openProduct(i) {
   PG = { i, items: mkItems(i), item: 0, m: user ? "Vault Coins" : "GCash", v: 0, vc: "", e: user ? user.email : "", f: 0, guide: false };
+  window.PG = PG;
   S.tab = "Product";
   render();
 }
 
 const fp = it => Math.round(it.p * (1 - GC[PG.i][5] / 100));
-const total = () => PG.item >= 0 ? Math.round(fp(PG.items[PG.item]) * (1 - PG.v / 100)) : 0;
-function updBar() { const p = $("pr"); if (p) p.textContent = P0(total()); }
+const total = () => PG.item >= 0 && PG.items && PG.items[PG.item] ? Math.round(fp(PG.items[PG.item]) * (1 - PG.v / 100)) : 0;
+
+function updBar() {
+  const tot = total();
+  const p = $("pr");
+  if (p) p.textContent = P0(tot);
+  const ap = $("aside-pr");
+  if (ap) ap.textContent = P0(tot);
+}
+
+function setDenomFilter(a) {
+  PG.f = a;
+  window.PG = PG;
+  if (a !== 0 && PG.items && PG.items[PG.item] && PG.items[PG.item].a !== a) {
+    const nextIdx = PG.items.findIndex(x => x.a === a);
+    if (nextIdx !== -1) {
+      PG.item = nextIdx;
+    }
+  }
+  drawItems();
+  updBar();
+}
 
 function drawItems() {
   const wrap = $("itwrap");
-  if (!wrap) return;
+  if (!wrap || !PG.items) return;
   const am = [...new Set(PG.items.map(x => x.a))];
   wrap.innerHTML = (am.length > 1 ? `
     <div class="chips">
-      ${[0, ...am].map(a => `<button class="${PG.f === a ? 'on' : ''}" onclick="PG.f=${a};drawItems()">${a ? a + " " + (PG.i === 1 ? "" : "USD") : "All"}</button>`).join("")}
+      ${[0, ...am].map(a => `<button type="button" class="${PG.f === a ? 'on' : ''}" onclick="setDenomFilter(${a})">${a ? a + " " + (PG.i === 1 ? "" : "USD") : "All"}</button>`).join("")}
     </div>
   ` : "") + `
     <div class="items">
       ${PG.items.map((it, k) => PG.f && it.a !== PG.f ? "" : `
-        <button class="it${PG.item === k ? ' on' : ''}" data-k="${k}" onclick="pickItem(${k})">
+        <button type="button" class="it${PG.item === k ? ' on' : ''}" data-k="${k}" onclick="pickItem(${k})">
           <b>${it.n}</b>
           <hr>
           <span class="ip">${P0(fp(it))}</span>
@@ -2196,8 +2249,15 @@ function drawItems() {
 
 function pickItem(k) {
   PG.item = k;
+  window.PG = PG;
   document.querySelectorAll(".it").forEach(b => b.classList.toggle("on", +b.dataset.k === k));
   updBar();
+}
+
+function toggleProductGuide() {
+  PG.guide = !PG.guide;
+  const gl = $("gl");
+  if (gl) gl.style.display = PG.guide ? 'block' : 'none';
 }
 
 function pickM(m) {
@@ -2256,7 +2316,7 @@ function product() {
           </div>
         </div>
 
-        <button class="btn-ghost" style="margin-top:16px;width:100%;justify-content:space-between;border:1px solid var(--surface-border)" onclick="PG.guide=!PG.guide;$('gl').style.display=PG.guide?'block':'none'">
+        <button type="button" class="btn-ghost" style="margin-top:16px;width:100%;justify-content:space-between;border:1px solid var(--surface-border)" onclick="toggleProductGuide()">
           <span>📖 Purchase & Redemption Guide</span>
           <span>⌃</span>
         </button>
@@ -2754,7 +2814,8 @@ function addCart(ev) {
   toast("✓ Added to Cart – open Cart to checkout");
 }
 
-let CT = { e: "", vc: "", v: 0, m: user ? "Vault Coins" : "GCash" };
+CT = { e: "", vc: "", v: 0, m: user ? "Vault Coins" : "GCash" };
+window.CT = CT;
 const cTot = () => Math.round(S.cart.reduce((s, x) => s + x.p * x.q, 0) * (1 - CT.v / 100));
 
 function cartListHTML() {
@@ -3399,11 +3460,8 @@ async function submitAuth() {
   const cleanP = cleanPhone($("aph")?.value || "");
   const fullName = up ? ($("an")?.value || "").trim() : e.split("@")[0];
 
-  // If registering: save credentials and log in immediately
+  // 1. REGISTER NEW USER
   if (up) {
-    saveUserDB(e, { fullName, phone: cleanP, password: p });
-    
-    // Register in Supabase Auth in background
     let sbUser = null;
     if (sb) {
       try {
@@ -3412,13 +3470,41 @@ async function submitAuth() {
           password: p,
           options: { data: { full_name: fullName, phone: cleanP } }
         });
-        if (r && r.data && r.data.user) sbUser = r.data.user;
+
+        if (r.error) {
+          if (b) { b.disabled = false; b.textContent = "Create Account & Sign In"; }
+          const errMsg = (r.error.message || "").toLowerCase();
+          if (errMsg.includes("rate limit")) {
+            showErr("Supabase email rate limit exceeded. To resolve this, disable 'Confirm email' in Supabase Dashboard > Authentication > Providers > Email for instant signup.");
+          } else if (errMsg.includes("already registered") || errMsg.includes("already taken")) {
+            showErr("This email is already registered in Supabase. Please sign in with your password.");
+            switchAuthTab("in");
+          } else {
+            showErr(r.error.message);
+          }
+          return;
+        }
+
+        if (r.data && r.data.user) {
+          sbUser = r.data.user;
+          // In Supabase, if user already exists and confirmation is on, identities can be empty
+          if (!r.data.session && r.data.user.identities && r.data.user.identities.length === 0) {
+            if (b) { b.disabled = false; b.textContent = "Create Account & Sign In"; }
+            showErr("This email is already registered in Supabase. Please sign in with your password.");
+            switchAuthTab("in");
+            return;
+          }
+        }
       } catch (sbErr) {
-        console.warn("Supabase background signUp warning:", sbErr);
+        if (b) { b.disabled = false; b.textContent = "Create Account & Sign In"; }
+        showErr(sbErr.message || "Failed to register in Supabase database");
+        return;
       }
     }
 
     if (b) { b.disabled = false; b.textContent = "Create Account & Sign In"; }
+
+    saveUserDB(e, { fullName, phone: cleanP, password: p });
     user = sbUser || {
       id: getValidUUID(e),
       email: e,
@@ -3426,7 +3512,7 @@ async function submitAuth() {
     };
     S.role = isOwner ? "admin" : "user";
 
-    // Sync to backend persistent store and Supabase profiles table
+    // Sync profile to database
     try {
       fetch("/api/users", {
         method: "POST",
@@ -3440,15 +3526,17 @@ async function submitAuth() {
         })
       });
       if (sb) {
-        sb.from("profiles").upsert({
+        await sb.from("profiles").upsert({
           id: user.id,
           email: e,
           full_name: fullName,
           phone: cleanP,
           role: S.role
-        }).then(() => {}).catch(() => {});
+        });
       }
-    } catch (e) {}
+    } catch (profErr) {
+      console.warn("Profile sync warning:", profErr);
+    }
 
     const acct = loadAccount(e);
     if (!acct.phone) acct.phone = cleanP;
@@ -3466,55 +3554,49 @@ async function submitAuth() {
     return;
   }
 
-  // If logging in:
-  if (isOwner) {
-    if (b) { b.disabled = false; b.textContent = "Sign In to Account"; }
-    user = { id: getValidUUID("admin_owner"), email: e, user_metadata: { full_name: "Administrator", phone: cleanP } };
-    S.role = "admin";
-    const acct = loadAccount(e);
-    S.bal = acct.bal;
-    S.pts = acct.pts;
-    S.codes = acct.codes;
-    save();
-    try {
-      fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: user.id, email: e, full_name: "Administrator", role: "admin", balance: S.bal, points: S.pts })
-      });
-    } catch (e) {}
-    authUI();
-    closeAuth();
-    toast("✓ Welcome back, Administrator!");
-    head();
-    if (S.tab === "Product") product();
-    else if (S.tab === "Cart") render();
-    return;
-  }
-
-  // Check Supabase Auth
+  // 2. SIGN IN / LOGIN
+  // When Supabase is active, authenticate strictly against Supabase Auth:
   if (sb) {
     try {
       const r = await sb.auth.signInWithPassword({ email: e, password: p });
-      if (!r.error && r.data && r.data.user) {
+      if (r.error) {
+        if (b) { b.disabled = false; b.textContent = "Sign In to Account"; }
+        const msg = r.error.message || "";
+        if (msg.toLowerCase().includes("invalid login credentials")) {
+          showErr("Invalid email or password. Please verify your credentials.");
+        } else if (msg.toLowerCase().includes("email not confirmed")) {
+          showErr("Email address not confirmed. Check your email or disable 'Confirm email' in Supabase Auth settings.");
+        } else {
+          showErr(msg || "Sign in failed");
+        }
+        return;
+      }
+
+      if (r.data && r.data.user) {
         if (b) { b.disabled = false; b.textContent = "Sign In to Account"; }
         user = r.data.user;
-        if (isOwner) S.role = "admin";
+        S.role = isOwner ? "admin" : "user";
         await loadProfile();
         closeAuth();
         toast("Welcome back, " + ((user.user_metadata && user.user_metadata.full_name) || e));
         return;
       }
-      console.warn("Supabase signIn error:", r.error?.message);
     } catch (err) {
-      console.warn("Supabase signIn exception:", err);
+      if (b) { b.disabled = false; b.textContent = "Sign In to Account"; }
+      showErr(err.message || "Failed to communicate with Supabase Auth");
+      return;
     }
   }
 
-  // Fallback / local credentials authentication
+  // Fallback ONLY when Supabase client is offline/disconnected:
   const localDb = getUsersDB();
   const localUser = localDb[e];
-  if (localUser && (localUser.password === p || !localUser.password)) {
+  if (localUser && localUser.password) {
+    if (localUser.password !== p) {
+      if (b) { b.disabled = false; b.textContent = "Sign In to Account"; }
+      showErr("Invalid email or password. Please re-enter your password.");
+      return;
+    }
     if (b) { b.disabled = false; b.textContent = "Sign In to Account"; }
     user = {
       id: getValidUUID(e),
@@ -3526,36 +3608,6 @@ async function submitAuth() {
     S.bal = acct.bal;
     S.pts = acct.pts;
     S.codes = acct.codes;
-    save();
-    try {
-      fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: user.id, email: e, full_name: user.user_metadata.full_name, phone: user.user_metadata.phone, role: S.role, balance: S.bal, points: S.pts })
-      });
-    } catch (e) {}
-    authUI();
-    closeAuth();
-    toast("Welcome back, " + (user.user_metadata.full_name || e));
-    head();
-    if (S.tab === "Product") product();
-    else if (S.tab === "Cart") render();
-    return;
-  }
-
-  // If user has prior local account records, allow login with matching password
-  const existingAcct = loadAccount(e);
-  if (existingAcct && (existingAcct.codes.length > 0 || existingAcct.bal > 0)) {
-    if (b) { b.disabled = false; b.textContent = "Sign In to Account"; }
-    user = {
-      id: getValidUUID(e),
-      email: e,
-      user_metadata: { full_name: e.split("@")[0], phone: existingAcct.phone || "" }
-    };
-    S.role = isOwner ? "admin" : "user";
-    S.bal = existingAcct.bal;
-    S.pts = existingAcct.pts;
-    S.codes = existingAcct.codes;
     save();
     authUI();
     closeAuth();
@@ -3674,9 +3726,9 @@ function authUI() {
 async function serverOrder(cs) {
   if (!cs || !cs.length) return true;
   const email = (user && user.email) || cs[0].e || "customer@gmail.com";
-  const uid = (user && user.id) ? (user.id.includes("-") ? user.id : getValidUUID(email)) : getValidUUID(email);
+  const uid = (user && user.id && user.id.length === 36 && !user.id.startsWith("00000000")) ? user.id : null;
 
-  // 1. Persist to backend server disk
+  // 1. Persist to backend server disk (/api/orders) so ALL connected devices see it immediately
   try {
     await fetch("/api/orders", {
       method: "POST",
@@ -3695,11 +3747,11 @@ async function serverOrder(cs) {
     localStorage.setItem("giftvault_all_orders", JSON.stringify([...newItems, ...stored].slice(0, 500)));
   } catch (e) {}
 
-  // 3. Persist to Supabase if live
+  // 3. Persist to Supabase database
   if (sb && SB_KEY && !SB_KEY.toLowerCase().includes("paste") && SB_KEY.length > 20) {
     try {
-      // Ensure user profile exists for relational integrity
-      if (user) {
+      // Ensure user profile exists for relational integrity if authenticated
+      if (user && uid) {
         try {
           await sb.from("profiles").upsert({
             id: uid,
@@ -3710,48 +3762,37 @@ async function serverOrder(cs) {
         } catch (prfErr) {}
       }
 
-      const payload = {
-        p_items: cs.map(c => ({ n: c.n, p: c.p, m: c.m, e: c.e, c: c.c, pt: c.pt || 0 })),
-        p_voucher: S.ref || null
-      };
-
-      let rpcSuccess = false;
-      try {
-        const r = await sb.rpc("place_order", payload);
-        if (!r.error && r.data !== null && !isNaN(Number(r.data))) {
-          S.bal = Number(r.data);
-          rpcSuccess = true;
-        }
-      } catch (rpcErr) {}
-
-      if (!rpcSuccess) {
-        // Direct table insertion fallback
-        for (const c of cs) {
-          const ordNum = c.id || ("GV-" + Math.random().toString(36).substring(2, 8).toUpperCase());
-          try {
-            await sb.from("orders").insert([{
-              order_number: ordNum,
-              user_id: uid,
-              item_name: c.n,
-              price: c.p,
-              payment_method: c.m,
-              email: c.e || email,
-              code: c.c,
-              points: c.pt || 0,
-              status: (c.status || "delivered").toLowerCase(),
-              voucher_code: S.ref || null
-            }]);
-          } catch (insErr) {
-            console.warn("Direct order insert note:", insErr);
+      for (const c of cs) {
+        const ordNum = c.id || ("GV-" + Math.floor(100000 + Math.random() * 900000));
+        try {
+          const { error } = await sb.from("orders").insert([{
+            order_number: ordNum,
+            user_id: uid, // nullable: prevents foreign key crash if unauthenticated
+            item_name: c.n,
+            price: Number(c.p || 0),
+            payment_method: c.m,
+            email: c.e || email,
+            code: c.c,
+            points: c.pt || 0,
+            status: (c.status || "delivered").toLowerCase(),
+            voucher_code: S.ref || null
+          }]);
+          if (error) {
+            console.warn("Supabase orders insert warning:", error.message);
+          } else {
+            console.log("Supabase order saved successfully:", ordNum);
           }
+        } catch (insErr) {
+          console.warn("Direct order insert note:", insErr);
         }
-        if (cs[0] && cs[0].m === "Vault Coins") {
-          const orderTotal = cs.reduce((sum, item) => sum + (item.p || 0), 0);
-          S.bal = Math.max(0, +(S.bal - orderTotal).toFixed(2));
-          try {
-            await sb.from("profiles").update({ balance: S.bal }).eq("id", uid);
-          } catch (balErr) {}
-        }
+      }
+
+      if (cs[0] && cs[0].m === "Vault Coins" && uid) {
+        const orderTotal = cs.reduce((sum, item) => sum + (item.p || 0), 0);
+        S.bal = Math.max(0, +(S.bal - orderTotal).toFixed(2));
+        try {
+          await sb.from("profiles").update({ balance: S.bal }).eq("id", uid);
+        } catch (balErr) {}
       }
     } catch (sbEx) {
       console.warn("Supabase serverOrder exception:", sbEx);
@@ -4051,6 +4092,7 @@ async function copyOrderCode(code) {
 
 async function loadAdmin() {
   const isLive = Boolean(sb && SB_KEY && !SB_KEY.toLowerCase().includes("paste") && SB_KEY.length > 20);
+  if (isLive) initRealtimeOrders();
 
   // 1. Fetch server persistent store for users and orders
   let serverUsers = [];
@@ -4725,6 +4767,25 @@ async function adminRole(id, role) {
   loadAdmin();
 }
 
+function initRealtimeOrders() {
+  if (!sb || window._sbRealtimeSubscribed) return;
+  try {
+    sb.channel("public-db-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+        if (S.tab === "Admin") loadAdmin();
+        if (S.tab === "Codes" && user) loadProfile();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
+        if (S.tab === "Admin") loadAdmin();
+        if (user) loadProfile();
+      })
+      .subscribe();
+    window._sbRealtimeSubscribed = true;
+  } catch (e) {
+    console.warn("Realtime subscription note:", e);
+  }
+}
+
 async function syncOfflineDataToSupabase() {
   if (!sb || !SB_KEY || SB_KEY.toLowerCase().includes("paste") || SB_KEY.length <= 20) {
     toast("Connect your Supabase credentials in Database Configuration first.");
@@ -4733,32 +4794,38 @@ async function syncOfflineDataToSupabase() {
   toast("Synchronizing data with Supabase database…");
   let usersCount = 0, ordersCount = 0;
   try {
-    // 1. Sync all users to profiles table
+    // 1. Sync all users to profiles table where valid UUID exists
     for (const u of (AD.u || [])) {
       if (!u.email) continue;
-      const uid = (u.id && u.id.includes("-")) ? u.id : getValidUUID(u.email);
-      try {
-        await sb.from("profiles").upsert({
-          id: uid,
-          email: u.email,
-          full_name: u.full_name || u.email.split("@")[0],
-          role: u.role || "user",
-          balance: Number(u.balance || 0),
-          phone: u.phone && u.phone !== "-" ? u.phone : null
-        });
-        usersCount++;
-      } catch (err) {}
+      const uid = (u.id && u.id.length === 36 && !u.id.startsWith("00000000")) ? u.id : null;
+      if (uid) {
+        try {
+          const res = await sb.from("profiles").upsert({
+            id: uid,
+            email: u.email,
+            full_name: u.full_name || u.email.split("@")[0],
+            role: u.role || "user",
+            balance: Number(u.balance || 0),
+            phone: u.phone && u.phone !== "-" ? u.phone : null
+          });
+          if (!res.error) usersCount++;
+        } catch (err) {}
+      }
     }
 
     // 2. Sync all orders to orders table
     for (const o of (AD.o || [])) {
       if (!o.item_name) continue;
-      const uid = getValidUUID(o.email);
       const ordNum = o.id || ("GV-" + Math.floor(100000 + Math.random() * 900000));
       try {
-        await sb.from("orders").upsert({
+        const check = await sb.from("orders").select("id").eq("order_number", ordNum).maybeSingle();
+        if (check && check.data) {
+          ordersCount++;
+          continue;
+        }
+        const { error } = await sb.from("orders").insert([{
           order_number: ordNum,
-          user_id: uid,
+          user_id: null, // Null avoids FK violation if user is not in profiles table
           item_name: o.item_name,
           price: Number(o.price || 0),
           payment_method: o.payment_method || "GCash",
@@ -4766,9 +4833,15 @@ async function syncOfflineDataToSupabase() {
           code: o.code || "CODE-PENDING",
           points: o.points || 0,
           status: (o.status || "delivered").toLowerCase()
-        }, { onConflict: "order_number" });
-        ordersCount++;
-      } catch (err) {}
+        }]);
+        if (!error) {
+          ordersCount++;
+        } else {
+          console.warn("Order sync error for", ordNum, error.message);
+        }
+      } catch (err) {
+        console.warn("Order sync exception for", ordNum, err);
+      }
     }
 
     toast(`✓ Sync Complete: ${usersCount} users and ${ordersCount} orders verified in Supabase!`);
@@ -4878,5 +4951,6 @@ Object.assign(window, {
   pingDatabase247, updateAdminMonitorUI,
   productSort, getCardMinPrice, setProductSort,
   toggleFaq, setFaqCategory, renderFaqList, scrollToFaq, FAQS,
-  selectPayAmt, selectPayMeth, prefillPayForm, P, PMS
+  selectPayAmt, selectPayMeth, prefillPayForm, P, PMS,
+  setDenomFilter, drawItems, toggleProductGuide, updBar, total, PG, CT, initRealtimeOrders
 });

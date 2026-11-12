@@ -14,6 +14,12 @@
 -- Enable pgcrypto for UUID generation if needed
 create extension if not exists "pgcrypto";
 
+-- CRITICAL PERMISSION GRANTS (Fixes 'permission denied for table orders/profiles')
+grant usage on schema public to anon, authenticated;
+alter default privileges in schema public grant all on tables to anon, authenticated;
+alter default privileges in schema public grant all on sequences to anon, authenticated;
+alter default privileges in schema public grant all on routines to anon, authenticated;
+
 -- =====================================================================
 -- 1. PROFILES & ACCOUNTS
 -- =====================================================================
@@ -131,6 +137,8 @@ alter table public.orders add constraint orders_user_id_fkey foreign key (user_i
 alter table public.orders add column if not exists order_number text not null default ('GV-' || upper(substr(md5(random()::text), 1, 6)));
 alter table public.orders add column if not exists voucher_code text;
 alter table public.orders add column if not exists discount_applied numeric(12,2) not null default 0;
+alter table public.orders drop constraint if exists orders_order_number_unique;
+alter table public.orders add constraint orders_order_number_unique unique (order_number);
 
 create index if not exists orders_user_idx on public.orders (user_id, created_at desc);
 create index if not exists orders_order_number_idx on public.orders (order_number);
@@ -367,13 +375,26 @@ create policy "mlbb: public read or insert" on public.mlbb_verifications
 create policy "settings: public read" on public.store_settings
   for select to anon, authenticated using (true);
 
--- Table access grants for web client operations
-grant select, insert, update on public.profiles to anon, authenticated;
-grant select on public.gift_cards, public.gift_card_denominations, public.vouchers,
-  public.reviews, public.store_settings to anon, authenticated;
-grant select, insert, update on public.orders, public.order_items, public.deposits to anon, authenticated;
-grant select on public.affiliates, public.referral_commissions to anon, authenticated;
-grant insert, select on public.mlbb_verifications to anon, authenticated;
+-- Table and sequence access grants for web client operations (anon & authenticated)
+grant all on public.profiles to anon, authenticated;
+grant all on public.orders to anon, authenticated;
+grant all on public.order_items to anon, authenticated;
+grant all on public.deposits to anon, authenticated;
+grant all on public.card_codes_inventory to anon, authenticated;
+grant all on public.gift_cards, public.gift_card_denominations, public.vouchers,
+  public.reviews, public.store_settings, public.affiliates, public.referral_commissions,
+  public.mlbb_verifications to anon, authenticated;
+grant all on all sequences in schema public to anon, authenticated;
+
+-- Realtime publications for multi-device sync
+do $$ begin
+  alter publication supabase_realtime add table public.orders;
+exception when others then null;
+end $$;
+do $$ begin
+  alter publication supabase_realtime add table public.profiles;
+exception when others then null;
+end $$;
 
 -- =====================================================================
 -- 14. STORED PROCEDURES & BUSINESS LOGIC

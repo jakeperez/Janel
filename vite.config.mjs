@@ -25,11 +25,13 @@ export default defineConfig({
     port: 3000,
     host: '0.0.0.0',
     strictPort: true,
+    allowedHosts: true,
   },
   preview: {
     port: 3000,
     host: '0.0.0.0',
     strictPort: true,
+    allowedHosts: true,
   },
   build: {
     outDir: 'dist',
@@ -42,8 +44,8 @@ export default defineConfig({
         server.middlewares.use((req, res, next) => {
           // 1. GET /api/status - Live 24/7 Monitoring Telemetry
           if (req.url === '/api/status') {
-            const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://xrfehvxqchskxcjytkvv.supabase.co').trim();
-            const key = (process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
+            const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://ruiqopolqxrarjexddsl.supabase.co').trim();
+            const key = (process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1aXFvcG9scXhyYXJqZXhkZHNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjE5MDUsImV4cCI6MjEwOTYzNzkwNX0.6JexMLCpUlsk5ozOHMZiAerztVM67xk0DtEuzEb9DOE').trim();
             const configured = Boolean(url && key && !key.toLowerCase().includes('paste') && key.length > 20);
             res.setHeader('Content-Type', 'application/json');
             return res.end(JSON.stringify({
@@ -336,8 +338,8 @@ export default defineConfig({
 
           // 11. GET /config.js
           if (req.url === '/config.js') {
-            const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://xrfehvxqchskxcjytkvv.supabase.co').trim();
-            const key = (process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
+            const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_SUPABASE_URL || 'https://ruiqopolqxrarjexddsl.supabase.co').trim();
+            const key = (process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1aXFvcG9scXhyYXJqZXhkZHNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjE5MDUsImV4cCI6MjEwOTYzNzkwNX0.6JexMLCpUlsk5ozOHMZiAerztVM67xk0DtEuzEb9DOE').trim();
             res.setHeader('Content-Type', 'application/javascript');
             return res.end(`window.GV_CONFIG = ${JSON.stringify({ SUPABASE_URL: url, SUPABASE_ANON_KEY: key })};\n`);
           }

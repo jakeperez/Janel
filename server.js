@@ -53,7 +53,10 @@ function getSupabaseCredentials() {
   ).trim();
 
   if (!url) {
-    url = 'https://xrfehvxqchskxcjytkvv.supabase.co';
+    url = 'https://ruiqopolqxrarjexddsl.supabase.co';
+  }
+  if (!key) {
+    key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1aXFvcG9scXhyYXJqZXhkZHNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNjE5MDUsImV4cCI6MjEwOTYzNzkwNX0.6JexMLCpUlsk5ozOHMZiAerztVM67xk0DtEuzEb9DOE';
   }
 
   return { url, key };
